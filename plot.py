@@ -8,11 +8,6 @@ import sys
 
 
 def plot_all_data(data_file='training_data.npz'):
-    """
-    Loads data from the .npz file and generates two plots:
-    1. A side-by-side PCA vs. UMAP of the model weights.
-    2. A learning curve of the episode rewards.
-    """
 
     # -----------------------------------------------------------------
     # 1. Load the Data
@@ -62,7 +57,9 @@ def plot_all_data(data_file='training_data.npz'):
     umap_df = pd.DataFrame(X_umap, columns=['UMAP 1', 'UMAP 2'])
     umap_df['Agent'] = y_weight_labels
     umap_df['Step'] = weight_steps
-
+    markers_list = ['o', 's', '^', 'v', 'P', 'X', '*']
+    label_to_marker = {label: markers_list[i % len(markers_list)]
+                       for i, label in enumerate(sorted(list(set(y_weight_labels))))}
     # --- Create the side-by-side plot ---
     fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
     fig1.suptitle('High-Dimensional Weight Clustering Analysis', fontsize=16)

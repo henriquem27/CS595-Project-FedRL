@@ -146,28 +146,47 @@ def main():
 
     callback_2 = WeightStorageCallback(
         check_freq=CHECK_FREQ,
-        agent_label='PenalizedDoublePendulum'  # Updated label
+        agent_label='PenalizedDoublePendulum67'  # Updated label
     )
 
-    print("Training Agent 2 (PenalizedDoublePendulum)...")
+    print("Training Agent 3 (PenalizedDoublePendulum)...")
     model_2.learn(total_timesteps=TOTAL_TIMESTEPS, callback=callback_2)
-    print("Agent 2 training complete.")
+    print("Agent 3 training complete.")
+
+       # === Agent 3 (Altered Task) ===
+    # Use the *same* base environment
+    env_3_base = gym.make('InvertedDoublePendulum-v5')
+    # Apply the wrapper to alter its task
+    indices_to_mask = [3, 4]
+    env_3 = PartialObservationWrapper(env_3_base, mask_indices=indices_to_mask)
+
+    model_3 = PPO("MlpPolicy", env_3, verbose=0)
+
+    callback_3 = WeightStorageCallback(
+        check_freq=CHECK_FREQ,
+        agent_label='PenalizedDoublePendulum34'  # Updated label
+    )
+
+    print("Training Agent 3 (PenalizedDoublePendulum)...")
+    model_3.learn(total_timesteps=TOTAL_TIMESTEPS, callback=callback_2)
+    print("Agent 3 training complete.")
 
 
 
 
-    all_weights = np.array(callback_1.weights_log + callback_2.weights_log)
-    all_weight_labels = np.array(callback_1.labels_log + callback_2.labels_log)
-    all_weight_steps = np.array(callback_1.steps_log + callback_2.steps_log)
+
+    all_weights = np.array(callback_1.weights_log + callback_2.weights_log +callback_3.weights_log)
+    all_weight_labels = np.array(callback_1.labels_log + callback_2.labels_log+callback_3.labels_log)
+    all_weight_steps = np.array(callback_1.steps_log + callback_2.steps_log+callback_3.steps_log)
 
     # 2. NEW: Episode data
     all_ep_rewards = np.array(
-        callback_1.ep_rewards_log + callback_2.ep_rewards_log)
+        callback_1.ep_rewards_log + callback_2.ep_rewards_log +callback_3.ep_rewards_log)
     all_ep_lengths = np.array(
-        callback_1.ep_lengths_log + callback_2.ep_lengths_log)
+        callback_1.ep_lengths_log + callback_2.ep_lengths_log+callback_3.ep_lengths_log)
     all_ep_labels = np.array(
-        callback_1.ep_labels_log + callback_2.ep_labels_log)
-    all_ep_steps = np.array(callback_1.ep_steps_log + callback_2.ep_steps_log)
+        callback_1.ep_labels_log + callback_2.ep_labels_log+callback_3.ep_labels_log)
+    all_ep_steps = np.array(callback_1.ep_steps_log + callback_2.ep_steps_log+callback_3.ep_steps_log)
 
     # --- Save all arrays to a single compressed file ---
 
