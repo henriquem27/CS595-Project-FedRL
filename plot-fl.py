@@ -12,6 +12,16 @@ REWARD_SMOOTHING_WINDOW = 100  # Window size for rolling average
 # ===============================================
 
 
+def get_display_label(full_label):
+    """
+    Extracts the 'type' from a label like 'Client_X_Type'.
+    e.g., 'Client_1_Standard' -> 'Standard'
+    """
+    try:
+        return full_label.split('_', 2)[2]
+    except IndexError:
+        return full_label
+
 def plot_learning_curves(data):
     """
     Plots the smoothed episode rewards for each client over training steps.
@@ -73,7 +83,7 @@ def plot_learning_curves(data):
 def plot_tsne_weights(data):
     """
     Performs t-SNE on the high-dimensional weight vectors and plots them
-    in 2D, colored by client and training step.
+    in 2D, colored by training step and using different markers for clients.
     """
     print("\nGenerating t-SNE plot (this may take a minute)...")
 
@@ -85,26 +95,29 @@ def plot_tsne_weights(data):
         print("Error: No weight data found to plot.")
         return
 
-
     # 1. Run t-SNE
-    # n_components=2 means we reduce to 2 dimensions
-    # NEW CORRECTED LINE
     tsne = TSNE(n_components=2, verbose=1, perplexity=30, max_iter=1000)
     tsne_results = tsne.fit_transform(weights)
 
     # 2. Create the scatter plot
     plt.figure(figsize=(12, 10))
 
-    # Map labels to colors
+    # --- MODIFICATION: Create marker mapping ---
     unique_labels = sorted(list(set(labels)))
-    colors = plt.cm.get_cmap('jet', len(unique_labels))
-    label_to_color = {label: colors(i)
-                      for i, label in enumerate(unique_labels)}
+    # List of available markers
+    markers_list = ['o', 's', '^', 'v', 'P', 'X', '*']
+    # Map each unique label to a marker
+    label_to_marker = {label: markers_list[i % len(markers_list)]
+                       for i, label in enumerate(unique_labels)}
 
-    # Plot points one by one to color them by step
-    # We use 'steps' to create a color gradient from light to dark
+    # We no longer need the label_to_color map for the legend
+    # colors = plt.cm.get_cmap('jet', len(unique_labels))
+    # label_to_color = {label: colors(i)
+    #                   for i, label in enumerate(unique_labels)}
+    # --- END MODIFICATION ---
+
+    # Plot points one by one
     for label in unique_labels:
-        # Get indices for this specific client
         indices = np.where(labels == label)[0]
 
         if indices.size == 0:
@@ -113,32 +126,43 @@ def plot_tsne_weights(data):
         client_tsne_results = tsne_results[indices]
         client_steps = steps[indices]
 
-        # Scatter plot for this client
-        # 'c=client_steps' maps the step number to a color
-        # 'cmap='plasma_r'' is a colormap (reversed plasma)
-        # 'vmin' and 'vmax' ensure the colormap spans all steps
+        # Get the short display name
+        display_name = get_display_label(label)
+
+        # --- MODIFICATION: Add the 'marker' argument ---
         sc = plt.scatter(
             client_tsne_results[:, 0],
             client_tsne_results[:, 1],
-            c=client_steps,
-            # 'plasma_r' goes from light (start) to dark (end)
+            c=client_steps,         # Color by training step
             cmap='plasma_r',
-            label=label,
+            label=display_name,
+            marker=label_to_marker[label],  # <-- Use the client's marker
             alpha=0.7,
-            s=50,  # size of points
+            s=60,  # size of points (made slightly larger)
             vmin=np.min(steps),
             vmax=np.max(steps)
         )
+        # --- END MODIFICATION ---
 
     plt.title('t-SNE Visualization of Model Weights')
     plt.xlabel('t-SNE Component 1')
     plt.ylabel('t-SNE Component 2')
 
+    # --- MODIFICATION: Update legend to show markers ---
     # Create a custom legend for client labels
-    handles = [plt.Line2D([0], [0], marker='o', color='w',
-                          markerfacecolor=label_to_color[label], markersize=10)
+    handles = [plt.Line2D([0], [0],
+                          marker=label_to_marker[label],  # Show correct marker
+                          color='w',  # White line (invisible)
+                          markerfacecolor='grey',  # Use a neutral color
+                          markeredgecolor='black',
+                          markersize=10)
                for label in unique_labels]
-    plt.legend(handles, unique_labels, title='Clients')
+
+    legend_display_names = [get_display_label(
+        label) for label in unique_labels]
+    # Changed title to 'Clients (Markers)'
+    plt.legend(handles, legend_display_names, title='Clients (Markers)')
+    # --- END MODIFICATION ---
 
     # Add a colorbar to show what the colors (steps) mean
     cbar = plt.colorbar(sc)
@@ -146,10 +170,8 @@ def plot_tsne_weights(data):
 
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
-    plt.savefig('tsne_weights.png')
-    print("Saved 'tsne_weights.png'")
-
-
+    plt.savefig('tsne_weights_markers.png')  # Saved to a new filename
+    print("Saved 'tsne_weights_markers.png'")
 # ===============================================
 #  Main execution
 # ===============================================

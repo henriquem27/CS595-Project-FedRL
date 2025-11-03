@@ -161,6 +161,12 @@ def main():
     indices_to_mask = [6, 7]
     env_2 = PartialObservationWrapper(env_2_base, mask_indices=indices_to_mask)
 
+    # --- Client 2 Env (Altered Task) ---
+    env_3_base = gym.make('InvertedDoublePendulum-v5')
+    indices_to_mask = [2,3,4]
+    env_3 = PartialObservationWrapper(env_3_base, mask_indices=indices_to_mask)
+
+
     # === Model Initialization ===
 
     # 1. Create the Global Model (Server Model)
@@ -172,7 +178,7 @@ def main():
     # 2. Create Client Models
     client_1 = PPO("MlpPolicy", env_1, verbose=0)
     client_2 = PPO("MlpPolicy", env_2, verbose=0)
-
+    client_3 = PPO("MlpPolicy", env_3, verbose=0)
     # 3. Create Callbacks (one for each client)
     callback_1 = WeightStorageCallback(
         check_freq=CHECK_FREQ,
@@ -181,6 +187,10 @@ def main():
     callback_2 = WeightStorageCallback(
         check_freq=CHECK_FREQ,
         agent_label='Client_2_Masked'
+    )
+    callback_3 = WeightStorageCallback(
+        check_freq=CHECK_FREQ,
+        agent_label='Client_3_Masked_v2'
     )
 
     print(
@@ -194,7 +204,7 @@ def main():
         global_state_dict = global_model.policy.state_dict()
         client_1.policy.load_state_dict(global_state_dict)
         client_2.policy.load_state_dict(global_state_dict)
-
+        client_3.policy.load_state_dict(global_state_dict)
         # 2. Local Training
         print(f"Training Client 1 (Standard)...")
         # reset_num_timesteps=False is CRUCIAL.
@@ -212,12 +222,18 @@ def main():
             callback=callback_2,
             reset_num_timesteps=False
         )
+        client_3.learn(
+            total_timesteps=LOCAL_STEPS,
+            callback=callback_3,
+            reset_num_timesteps=False
+        )
 
         # 3. Aggregation (FedAvg)
         print("Aggregating model weights...")
         client_state_dicts = [
             client_1.policy.state_dict(),
-            client_2.policy.state_dict()
+            client_2.policy.state_dict(),
+            client_3.policy.state_dict()
         ]
 
         avg_state_dict = average_state_dicts(client_state_dicts)
@@ -232,18 +248,18 @@ def main():
     print("Collecting data from callbacks...")
 
     # 1. Weight data
-    all_weights = np.array(callback_1.weights_log + callback_2.weights_log)
-    all_weight_labels = np.array(callback_1.labels_log + callback_2.labels_log)
-    all_weight_steps = np.array(callback_1.steps_log + callback_2.steps_log)
+    all_weights = np.array(callback_1.weights_log + callback_2.weights_log+callback_3.weights_log)
+    all_weight_labels = np.array(callback_1.labels_log + callback_2.labels_log+callback_3.labels_log)
+    all_weight_steps = np.array(callback_1.steps_log + callback_2.steps_log+callback_3.steps_log)
 
     # 2. Episode data
     all_ep_rewards = np.array(
-        callback_1.ep_rewards_log + callback_2.ep_rewards_log)
+        callback_1.ep_rewards_log + callback_2.ep_rewards_log+callback_3.ep_rewards_log)
     all_ep_lengths = np.array(
-        callback_1.ep_lengths_log + callback_2.ep_lengths_log)
+        callback_1.ep_lengths_log + callback_2.ep_lengths_log+callback_3.ep_lengths_log)
     all_ep_labels = np.array(
-        callback_1.ep_labels_log + callback_2.ep_labels_log)
-    all_ep_steps = np.array(callback_1.ep_steps_log + callback_2.ep_steps_log)
+        callback_1.ep_labels_log + callback_2.ep_labels_log+callback_3.ep_labels_log)
+    all_ep_steps = np.array(callback_1.ep_steps_log + callback_2.ep_steps_log+callback_3.ep_steps_log)
 
     # --- Save all arrays to a single compressed file ---
     output_filename = 'federated_training_data.npz'

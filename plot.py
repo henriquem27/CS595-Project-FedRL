@@ -94,7 +94,7 @@ def plot_all_data(data_file='training_data.npz'):
         ax=ax2
     )
     ax2.set_title('UMAP Projection of Model Weights')
-
+    plt.savefig('weight_clustering.png')
     print("Generated clustering plot.")
 
     # -----------------------------------------------------------------
@@ -137,7 +137,10 @@ def plot_all_data(data_file='training_data.npz'):
     # 4. Show All Plots
     # -----------------------------------------------------------------
     plt.tight_layout()
+    plt.savefig('learning_curve.png')
+    print("Saved 'weight_clustering_and_learning_curve.png'")
     plt.show()
+    
     print("Done.")
 
 
