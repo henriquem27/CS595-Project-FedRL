@@ -72,7 +72,7 @@ def plot_learning_curves(data):
     plt.legend()
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
-    plt.savefig('learning_curves.png')
+    plt.savefig('fl_learning_curves.png')
     print("Saved 'learning_curves.png'")
 
 
@@ -148,7 +148,6 @@ def plot_tsne_weights(data):
     plt.xlabel('t-SNE Component 1')
     plt.ylabel('t-SNE Component 2')
 
-    # --- MODIFICATION: Update legend to show markers ---
     # Create a custom legend for client labels
     handles = [plt.Line2D([0], [0],
                           marker=label_to_marker[label],  # Show correct marker
@@ -170,7 +169,7 @@ def plot_tsne_weights(data):
 
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
-    plt.savefig('tsne_weights_markers.png')  # Saved to a new filename
+    plt.savefig('fl_tsne_weights_markers.png')  # Saved to a new filename
     print("Saved 'tsne_weights_markers.png'")
 # ===============================================
 #  Main execution

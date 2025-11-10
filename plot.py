@@ -67,12 +67,11 @@ def plot_all_data(data_file='training_data.npz'):
         data=pca_df,
         x='Principal Component 1',
         y='Principal Component 2',
-        hue='Step',         # <-- Changed from 'Agent'
-        style='Agent',      # <-- Kept 'Agent' to distinguish clients
-        palette='viridis',  # <-- Changed to a sequential colormap
+        hue='Step',
+        style='Agent',
+        palette='viridis',
         alpha=0.7,
         ax=ax1
-        # size='Step' was removed
     )
     ax1.set_title('PCA Projection of Model Weights')
 
@@ -81,18 +80,17 @@ def plot_all_data(data_file='training_data.npz'):
         data=umap_df,
         x='UMAP 1',
         y='UMAP 2',
-        hue='Step',         # <-- Changed from 'Agent'
-        style='Agent',      # <-- Kept 'Agent' to distinguish clients
-        palette='viridis',  # <-- Changed to a sequential colormap
+        hue='Step',
+        style='Agent',
+        palette='viridis',
         alpha=0.7,
         ax=ax2
-        # size='Step' was removed
     )
     ax2.set_title('UMAP Projection of Model Weights')
 
     # Add tight_layout before saving the figure
     fig1.tight_layout(rect=[0, 0.03, 1, 0.95])  # Make room for suptitle
-    plt.savefig('weight_clustering.png')
+    plt.savefig('single-weight_clustering.png')
     print("Generated clustering plot.")
 
     # -----------------------------------------------------------------
@@ -107,25 +105,40 @@ def plot_all_data(data_file='training_data.npz'):
         'Agent': ep_labels
     })
 
+    # --- ADD THIS SECTION TO CALCULATE SMOOTHED REWARDS ---
+    print("Calculating rolling average for learning curves...")
+    window_size = 100  # <--- Adjust this to make the line smoother or more responsive
+
+    smoothed_df_list = []
+    for agent in episode_df['Agent'].unique():
+        # Sort by step for the agent
+        agent_df = episode_df[episode_df['Agent']
+                              == agent].sort_values(by='Step')
+        # Calculate the rolling mean on the 'Reward' column
+        agent_df['Smoothed Reward'] = agent_df['Reward'].rolling(
+            window=window_size, min_periods=1).mean()
+        smoothed_df_list.append(agent_df)
+
+    # Combine the smoothed data back into one DataFrame
+    smoothed_df = pd.concat(smoothed_df_list)
+    # --- END OF ADDED SECTION ---
+
     # --- Create the line plot ---
-    # This plot remains unchanged, as it's the correct way
-    # to compare learning curves per agent.
     fig2, ax_reward = plt.subplots(figsize=(12, 7))
 
     sns.lineplot(
-        data=episode_df,
+        data=smoothed_df,  # <-- Use the new smoothed DataFrame
         x='Step',
-        y='Reward',
+        y='Smoothed Reward',  # <-- Plot the 'Smoothed Reward' column
         hue='Agent',
-        style='Agent',
-        markers=True,
-        dashes=False,
+        markers=False,     # <-- Set markers to False for a clean line
         ax=ax_reward
     )
 
     ax_reward.set_title('Learning Curve: Episode Reward over Time')
     ax_reward.set_xlabel('Training Timesteps')
-    ax_reward.set_ylabel('Episode Reward')
+    # <-- Update Y-axis label
+    ax_reward.set_ylabel(f'Smoothed Episode Reward (Window={window_size})')
     ax_reward.legend(title='Agent')
 
     print("Generated learning curve plot.")
@@ -135,10 +148,10 @@ def plot_all_data(data_file='training_data.npz'):
     # -----------------------------------------------------------------
     # Add tight_layout before saving the figure
     fig2.tight_layout()
-    plt.savefig('learning_curve.png')
+    plt.savefig('Single-learning_curve.png')
 
-    # Corrected print statement
-    print("Saved 'weight_clustering.png' and 'learning_curve.png'")  # <-- Corrected
+    # Corrected print statement to match your new filenames
+    print("Saved 'single-weight_clustering.png' and 'Single-learning_curve.png'")
     plt.show()
 
     print("Done.")

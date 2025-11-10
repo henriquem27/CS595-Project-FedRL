@@ -137,6 +137,7 @@ def main():
 
     # === Agent 2 (Altered Task) ===
     # Use the *same* base environment
+    print("Training Agent 2 (PenalizedDoublePendulum67)...")
     env_2_base = gym.make('InvertedDoublePendulum-v5')
     # Apply the wrapper to alter its task
     indices_to_mask = [6,7]
@@ -168,7 +169,7 @@ def main():
     )
 
     print("Training Agent 3 (PenalizedDoublePendulum)...")
-    model_3.learn(total_timesteps=TOTAL_TIMESTEPS, callback=callback_2)
+    model_3.learn(total_timesteps=TOTAL_TIMESTEPS, callback=callback_3)
     print("Agent 3 training complete.")
 
 
