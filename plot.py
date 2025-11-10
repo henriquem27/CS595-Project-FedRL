@@ -57,9 +57,7 @@ def plot_all_data(data_file='training_data.npz'):
     umap_df = pd.DataFrame(X_umap, columns=['UMAP 1', 'UMAP 2'])
     umap_df['Agent'] = y_weight_labels
     umap_df['Step'] = weight_steps
-    markers_list = ['o', 's', '^', 'v', 'P', 'X', '*']
-    label_to_marker = {label: markers_list[i % len(markers_list)]
-                       for i, label in enumerate(sorted(list(set(y_weight_labels))))}
+
     # --- Create the side-by-side plot ---
     fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
     fig1.suptitle('High-Dimensional Weight Clustering Analysis', fontsize=16)
@@ -69,12 +67,12 @@ def plot_all_data(data_file='training_data.npz'):
         data=pca_df,
         x='Principal Component 1',
         y='Principal Component 2',
-        hue='Agent',
-        style='Agent',
-        size='Step',
-        palette='bright',
+        hue='Step',         # <-- Changed from 'Agent'
+        style='Agent',      # <-- Kept 'Agent' to distinguish clients
+        palette='viridis',  # <-- Changed to a sequential colormap
         alpha=0.7,
         ax=ax1
+        # size='Step' was removed
     )
     ax1.set_title('PCA Projection of Model Weights')
 
@@ -83,14 +81,17 @@ def plot_all_data(data_file='training_data.npz'):
         data=umap_df,
         x='UMAP 1',
         y='UMAP 2',
-        hue='Agent',
-        style='Agent',
-        size='Step',
-        palette='bright',
+        hue='Step',         # <-- Changed from 'Agent'
+        style='Agent',      # <-- Kept 'Agent' to distinguish clients
+        palette='viridis',  # <-- Changed to a sequential colormap
         alpha=0.7,
         ax=ax2
+        # size='Step' was removed
     )
     ax2.set_title('UMAP Projection of Model Weights')
+
+    # Add tight_layout before saving the figure
+    fig1.tight_layout(rect=[0, 0.03, 1, 0.95])  # Make room for suptitle
     plt.savefig('weight_clustering.png')
     print("Generated clustering plot.")
 
@@ -100,7 +101,6 @@ def plot_all_data(data_file='training_data.npz'):
     print("Generating learning curves...")
 
     # Create a DataFrame for the episode data
-    # This is perfect for seaborn's lineplot
     episode_df = pd.DataFrame({
         'Step': ep_steps,
         'Reward': ep_rewards,
@@ -108,8 +108,8 @@ def plot_all_data(data_file='training_data.npz'):
     })
 
     # --- Create the line plot ---
-    # seaborn.lineplot will automatically aggregate data by step
-    # and plot the mean with a confidence interval.
+    # This plot remains unchanged, as it's the correct way
+    # to compare learning curves per agent.
     fig2, ax_reward = plt.subplots(figsize=(12, 7))
 
     sns.lineplot(
@@ -131,13 +131,16 @@ def plot_all_data(data_file='training_data.npz'):
     print("Generated learning curve plot.")
 
     # -----------------------------------------------------------------
-    # 4. Show All Plots
+    # 4. Save and Show Plots
     # -----------------------------------------------------------------
-    plt.tight_layout()
+    # Add tight_layout before saving the figure
+    fig2.tight_layout()
     plt.savefig('learning_curve.png')
-    print("Saved 'weight_clustering_and_learning_curve.png'")
+
+    # Corrected print statement
+    print("Saved 'weight_clustering.png' and 'learning_curve.png'")  # <-- Corrected
     plt.show()
-    
+
     print("Done.")
 
 
