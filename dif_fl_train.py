@@ -207,8 +207,7 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
         )
         client_callbacks.append(callback)
 
-    print(
-        f"\nStarting DP Federated Learning: {len(task_list)} clients, {NUM_ROUNDS} rounds, {LOCAL_STEPS} local steps per round.")
+    print(f"\nStarting DP Federated Learning: {len(task_list)} clients, {NUM_ROUNDS} rounds, {LOCAL_STEPS} local steps per round.")
 
     # === Federated Training Loop ===
     for round_num in range(NUM_ROUNDS):
@@ -231,8 +230,7 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
             )
 
         # -----------------------------------------------------------------
-        # 3. COMPUTE, CLIP, AND NOISE DELTAS
-        # -----------------------------------------------------------------
+
         print("Clipping and noising client deltas...")
         noisy_deltas = []
 

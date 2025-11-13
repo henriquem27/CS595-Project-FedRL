@@ -3,15 +3,39 @@ from dif_fl_train import run_dp_fl_experiment
 from fl_train import run_fl_experiment
 tasks_to_run = [
     {
-        'label': 'StandardDoublePendulum',
+        'label': 'StandardDoublePendulum-1',
         'mask': None  # This is your "Agent 1"
     },
     {
-        'label': 'PenalizedDoublePendulum67',
+        'label': 'PenalizedDoublePendulum67-1',
         'mask': [6, 7]  # This is your "Agent 2"
     },
     {
-        'label': 'PenalizedDoublePendulum34',
+        'label': 'PenalizedDoublePendulum34-1',
+        'mask': [3, 4]  # This is your "Agent 3"
+    },
+    {
+        'label': 'StandardDoublePendulum-2',
+        'mask': None  # This is youpr "Agent 1"
+    },
+    {
+        'label': 'PenalizedDoublePendulum67-2',
+        'mask': [6, 7]  # This is your "Agent 2"
+    },
+    {
+        'label': 'PenalizedDoublePendulum3-2',
+        'mask': [3, 4]  # This is your "Agent 3"
+    },
+    {
+        'label': 'StandardDoublePendulum-3',
+        'mask': None  # This is your "Agent 1"
+    },
+    {
+        'label': 'PenalizedDoublePendulum67-3',
+        'mask': [6, 7]  # This is your "Agent 2"
+    },
+    {
+        'label': 'PenalizedDoublePendulum34-3',
         'mask': [3, 4]  # This is your "Agent 3"
     },
     # {
@@ -29,7 +53,7 @@ run_experiment_training(
 """
 |--- Hyperparameters for differential privacy ---|
 """
-NUM_ROUNDS = 20
+NUM_ROUNDS = 10
 LOCAL_STEPS = 5000
 TOTAL_TIMESTEPS = NUM_ROUNDS * LOCAL_STEPS
 CHECK_FREQ = 5000  # Callback check frequency
