@@ -1,6 +1,6 @@
 import numpy as np
 from plotting import plot_learning_curves, plot_reward_vs_epoch, plot_tsne_weights, plot_umap_weights
-
+from comparison_plot import plot_combined_learning_curves
 
 def generate_plots_fl(data, output_prefix):
     # Generate all plots
@@ -36,3 +36,5 @@ if __name__ == "__main__":
     generate_plots_dp(data, "dp")  # Output files will be prefixed with "dp"
     print("All plots generated and saved.") 
     
+    plot_combined_learning_curves()
+    print("Combined learning curve plot generated and saved.")
