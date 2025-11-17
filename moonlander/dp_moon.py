@@ -46,11 +46,13 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
     for i, task in enumerate(task_list):
             label = task['label']
             gravity = task['gravity']
+            wind = task['wind']
             print(
                 f"  > Client {i+1} ({label}): Mask={gravity if gravity else 'None'}")
 
             # Create Env
-            env = gym.make('LunarLander-v3', gravity=gravity)
+            env = gym.make('LunarLander-v3', gravity=gravity,
+                           enable_wind=True, wind_power=wind)
             client_envs.append(env)
 
             # Create Client Model

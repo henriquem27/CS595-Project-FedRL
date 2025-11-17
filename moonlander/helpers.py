@@ -5,8 +5,100 @@ import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3 import PPO
 from collections import OrderedDict
+from sklearn.cluster import KMeans
 
 
+def _flatten_model_weights(state_dicts):
+    """
+    Converts a list of model state_dicts into a 2D numpy array
+    (n_models, n_parameters) for clustering.
+    """
+    flattened_weights = []
+    for state_dict in state_dicts:
+        model_vector = []
+        for key in state_dict:
+            # Move tensor to CPU, convert to numpy, and flatten
+            tensor_flat = state_dict[key].cpu().numpy().ravel()
+            model_vector.append(tensor_flat)
+
+        # Concatenate all layer vectors into one big vector for this model
+        if model_vector:
+            flattened_weights.append(np.concatenate(model_vector))
+
+    return np.array(flattened_weights)
+
+
+def find_closest_model(client_state_dict, global_state_dicts):
+    """
+    Finds which global model (by index) is "closest" to the client's
+    current model using L2 distance.
+    """
+    min_dist = np.inf
+    best_idx = 0
+
+    # Ensure client dict is on CPU for comparison
+    client_dict_cpu = {k: v.cpu() for k, v in client_state_dict.items()}
+
+    for idx, global_dict in enumerate(global_state_dicts):
+        dist = 0
+        # Calculate L2 distance (sum of squared differences)
+        for key in client_dict_cpu:
+            dist += th.sum((client_dict_cpu[key] -
+                           global_dict[key].cpu())**2).item()
+
+        if dist < min_dist:
+            min_dist = dist
+            best_idx = idx
+
+    return best_idx
+
+
+def cluster_and_average_models(state_dicts, n_clusters):
+    """
+    Performs K-Means clustering on a list of model state_dicts
+    and returns a list of new, averaged state_dicts (one per cluster).
+    
+    Returns:
+        list[OrderedDict]: A list of averaged models.
+    """
+    if not state_dicts:
+        return []
+
+    # 1. Convert state_dicts to a 2D array for clustering
+    weight_matrix = _flatten_model_weights(state_dicts)
+
+    if len(weight_matrix) < n_clusters:
+        print(
+            f"  Warning: Not enough models ({len(weight_matrix)}) for {n_clusters} clusters.")
+        print("  Falling back to standard FedAvg.")
+        # Fallback: Just average all models into one
+        return [average_ordered_dicts(state_dicts)]
+
+    # 2. Run K-Means clustering
+    print(
+        f"  Clustering {len(weight_matrix)} models into {n_clusters} groups...")
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    cluster_labels = kmeans.fit_predict(weight_matrix)
+
+    # 3. Average models within each cluster
+    averaged_models = []
+    for i in range(n_clusters):
+        # Get the indices of the models belonging to this cluster
+        indices_in_cluster = np.where(cluster_labels == i)[0]
+
+        if len(indices_in_cluster) == 0:
+            print(f"  Warning: Cluster {i} is empty. Skipping.")
+            continue
+
+        # Get the state_dicts for those models
+        models_in_cluster = [state_dicts[idx] for idx in indices_in_cluster]
+
+        # Use your existing averaging function on this subset
+        averaged_cluster_model = average_ordered_dicts(models_in_cluster)
+        averaged_models.append(averaged_cluster_model)
+        print(f"  Cluster {i} (size {len(indices_in_cluster)}) averaged.")
+
+    return averaged_models
 def average_state_dicts(state_dicts: list[OrderedDict[str, th.Tensor]]) -> OrderedDict[str, th.Tensor]:
     """
     Averages a list of PyTorch state dictionaries.

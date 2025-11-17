@@ -1,198 +1,217 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.decomposition import PCA
-from sklearn.metrics import silhouette_score
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 import os
 
 # --- Configuration ---
-STANDARD_FILE = 'federated_training_data.npz'
-DP_FILE = 'dp_training_data.npz'
-SINGLE_FILE = 'training_data.npz'  # <--- New file from single_moon.py
 OUTPUT_DIR = "comparison_plots"
+
+# File names for each experiment
+DATA_FILES = {
+    'Single Agent': 'training_data.npz',
+    'Standard FL': 'federated_training_data.npz',
+    'Clustered FL': 'clustered_fl_training_data.npz',
+    'DP FL': 'dp_training_data.npz'
+}
+
+# How to group timesteps for smoothing
+# (e.g., 2000 means 0-1999, 2000-3999, etc.)
+STEP_BIN_SIZE = 2000
+# Set a consistent X-axis limit
+MAX_STEPS = 200000
+# Set a consistent Y-axis limit for rewards
+REWARD_YLIM = (-400, 300)
+
+# --- Plotting Mappings ---
+# Color will represent the *Training Method*
+COLOR_MAP = {
+    'Single Agent': '#2ca02c',  # Green
+    'Standard FL': '#1f77b4',  # Blue
+    'Clustered FL': '#9467bd',  # Purple
+    'DP FL': '#d62728'  # Red
+}
+
+# Line Style will represent the *Environment*
+STYLE_MAP = {
+    'Moon': 'solid',
+    'Mars': 'dashed',
+    'Earth': 'dotted'
+}
+
+# --- Helper Functions ---
 
 
 def load_data(filename):
+    """Loads an .npz file if it exists."""
     if not os.path.exists(filename):
-        print(f"Warning: {filename} not found.")
+        print(f"Warning: Data file not found: {filename}")
         return None
-    return np.load(filename, allow_pickle=True)
-
-
-def get_client_type(label):
-    """
-    Extracts the environment type from the label.
-    e.g. "Client_1_Moon" -> "Moon"
-    """
     try:
-        return label.split('_')[-1]
-    except:
-        return label
+        return np.load(filename, allow_pickle=True)
+    except Exception as e:
+        print(f"Error loading {filename}: {e}")
+        return None
 
 
-def plot_three_way_pca(std_data, dp_data, single_data):
+def get_client_type(label_str):
+    """Extracts 'Moon', 'Earth', or 'Mars' from a label."""
+    try:
+        return label_str.split('_')[-1]
+    except Exception:
+        return 'unknown'
+
+
+def process_data(data):
     """
-    Projects ALL three experiments into the PCA space defined by Standard FL.
-    This shows:
-      1. The Generalization Cluster (Std FL)
-      2. The Privacy Noise (DP FL)
-      3. The Specialization Drift (Single Agent)
+    Converts raw .npz data into an aggregated Pandas DataFrame.
+    Calculates mean/min/max per step_bin and type.
     """
-    print("Generating 3-Way PCA Comparison...")
+    if data is None:
+        return pd.DataFrame()
 
-    # 1. Fit PCA on Standard FL (The Baseline)
-    std_weights = std_data['weights']
-    pca = PCA(n_components=2)
-    pca.fit(std_weights)
+    df = pd.DataFrame({
+        'steps': data['ep_steps'],
+        'reward': data['ep_rewards'],
+        'label': data['ep_labels']
+    })
 
-    # 2. Transform all datasets
-    std_pca = pca.transform(std_weights)
-    dp_pca = pca.transform(dp_data['weights'])
-    single_pca = pca.transform(single_data['weights'])
+    # Add environment type column (Moon, Earth, Mars)
+    df['type'] = df['label'].apply(get_client_type)
+
+    # Bin the steps to create smoothed groups
+    df['step_bin'] = (df['steps'] // STEP_BIN_SIZE) * STEP_BIN_SIZE
+
+    # Group by the binned steps and env type, then calculate stats
+    grouped = df.groupby(['step_bin', 'type'])['reward'].agg(
+        mean='mean',
+        min='min',
+        max='max'
+    ).reset_index()
+
+    return grouped
+
+# --- Main Plotting Function ---
+
+
+def plot_master_comparison(datasets):
+    """
+    Generates the 4-way comparison plot.
+    """
+    print("Generating master comparison plot...")
+
+    fig, ax = plt.subplots(figsize=(16, 10))  # Large figure for readability
+
+    # Loop over each method (Single, FL, Clustered, DP)
+    for method_name, grouped_data in datasets.items():
+        if grouped_data.empty:
+            print(f"  Skipping {method_name} (no data).")
+            continue
+
+        plot_color = COLOR_MAP.get(method_name, 'gray')
+
+        # Loop over each env type (Moon, Mars, Earth)
+        for env_type, plot_style in STYLE_MAP.items():
+
+            # Get the specific data for this method AND env
+            type_data = grouped_data[grouped_data['type'] == env_type]
+            if type_data.empty:
+                continue
+
+            # 1. Plot the MEAN line
+            ax.plot(
+                type_data['step_bin'],
+                type_data['mean'],
+                color=plot_color,
+                linestyle=plot_style,
+                linewidth=2,
+                label=f"{method_name} - {env_type}"  # Internal label
+            )
+
+            # 2. Plot the MIN/MAX shaded band
+            # ax.fill_between(
+            #     type_data['step_bin'],
+            #     type_data['min'],
+            #     type_data['max'],
+            #     color=plot_color,
+            #     alpha=0.1,  # Very transparent
+            #     edgecolor='none'
+            # )
+
+    # --- Create Custom Legends (outside the plot) ---
+    # We create "dummy" lines to represent the colors and styles
+
+    # Legend 1: Colors for Training Method
+    color_patches = [
+        mlines.Line2D([], [], color=c, linestyle='solid', linewidth=3,
+                      label=name)
+        for name, c in COLOR_MAP.items() if name in datasets
+    ]
+    legend1 = ax.legend(
+        handles=color_patches,
+        title='Training Method',
+        loc='upper center',
+        bbox_to_anchor=(0.25, -0.1),  # Position below plot
+        ncol=2,
+        fontsize='large',
+        title_fontsize='large'
+    )
+
+    # Legend 2: Line Styles for Environment
+    style_lines = [
+        mlines.Line2D([], [], color='black', linestyle=s, linewidth=2,
+                      label=name)
+        for name, s in STYLE_MAP.items()
+    ]
+    ax.legend(
+        handles=style_lines,
+        title='Environment Type',
+        loc='upper center',
+        bbox_to_anchor=(0.75, -0.1),  # Position below plot
+        ncol=1,
+        fontsize='large',
+        title_fontsize='large'
+    )
+
+    # Add the first legend back manually (ax.legend overwrites)
+    ax.add_artist(legend1)
+
+    # --- Final Plot Setup ---
+    ax.set_title('Master Comparison: Method vs. Environment', fontsize=18)
+    ax.set_xlabel(
+        f'Timesteps (Grouped in bins of {STEP_BIN_SIZE})', fontsize=14)
+    ax.set_ylabel('Reward (Mean with Min/Max Band)', fontsize=14)
+    ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+    ax.set_ylim(REWARD_YLIM)
+    ax.set_xlim(0, MAX_STEPS)
+
+    # Adjust layout to make room for the legends at the bottom
+    plt.subplots_adjust(bottom=0.25)
+
+    save_path = os.path.join(OUTPUT_DIR, "comparison_master_plot.png")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    plt.tight_layout()
+    
+    plt.savefig(save_path)
+    plt.show()
+    print(f"\nMaster plot saved to: {save_path}")
+
+
+# --- Main execution ---
+if __name__ == "__main__":
+
+    # 1. Load all datasets
+    raw_datasets = {
+        name: load_data(file)
+        for name, file in DATA_FILES.items()
+    }
+
+    # 2. Process them into aggregated dataframes
+    processed_datasets = {
+        name: process_data(data)
+        for name, data in raw_datasets.items()
+    }
 
     # 3. Plot
-    plt.figure(figsize=(18, 6))
-
-    # Helper for plotting
-    def plot_scatter(ax, data_pca, labels, title):
-        types = [get_client_type(l) for l in labels]
-        unique_types = sorted(list(set(types)))
-        colors = plt.cm.get_cmap('tab10', len(unique_types))
-
-        for i, t in enumerate(unique_types):
-            indices = [idx for idx, x in enumerate(types) if x == t]
-            if not indices:
-                continue
-            ax.scatter(
-                data_pca[indices, 0],
-                data_pca[indices, 1],
-                label=t,
-                color=colors(i),
-                alpha=0.6
-            )
-        ax.set_title(title)
-        ax.set_xlabel("PC1")
-        ax.set_ylabel("PC2")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        # Lock axis to standard scale for fair comparison
-        ax.set_xlim(std_pca[:, 0].min() - 1, std_pca[:, 0].max() + 1)
-        ax.set_ylim(std_pca[:, 1].min() - 1, std_pca[:, 1].max() + 1)
-
-    # Subplot 1: Standard FL
-    plot_scatter(plt.subplot(1, 3, 1), std_pca,
-                 std_data['weight_labels'], "Standard FL (Shared Model)")
-
-    # Subplot 2: DP FL
-    plot_scatter(plt.subplot(1, 3, 2), dp_pca,
-                 dp_data['weight_labels'], "DP FL (Noisy Shared Model)")
-
-    # Subplot 3: Single Agent
-    plot_scatter(plt.subplot(1, 3, 3), single_pca,
-                 single_data['weight_labels'], "Single Agent (Independent)")
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, "comparison_3way_pca.png"))
-    print("Saved comparison_3way_pca.png")
-
-
-def plot_performance_benchmark(std_data, dp_data, single_data):
-    """
-    Overlays learning curves. 
-    Single Agent usually learns FASTER (high reward) because it specializes.
-    FL usually learns SLOWER but generalizes better.
-    """
-    print("Generating Performance Benchmark Plot...")
-
-    plt.figure(figsize=(12, 8))
-
-    def get_smooth_curve(data):
-        df = pd.DataFrame({
-            'steps': data['ep_steps'],
-            'reward': data['ep_rewards']
-        })
-        # Group by step to average across all clients
-        df['step_group'] = (df['steps'] // 2000) * 2000
-        mean_perf = df.groupby('step_group')['reward'].mean()
-        return mean_perf.rolling(window=5, min_periods=1).mean()
-
-    # Plot Single Agent (The "Ideal" Specialist)
-    if single_data:
-        curve = get_smooth_curve(single_data)
-        plt.plot(curve.index, curve, label="Single Agent (Independent)",
-                 color='green', linewidth=2.5, linestyle='-')
-
-    # Plot Standard FL (The Collaborative Generalist)
-    if std_data:
-        curve = get_smooth_curve(std_data)
-        plt.plot(curve.index, curve, label="Standard FL",
-                 color='blue', linewidth=2.5, linestyle='--')
-
-    # Plot DP FL (The Private Version)
-    if dp_data:
-        curve = get_smooth_curve(dp_data)
-        plt.plot(curve.index, curve, label="DP FL (Private)",
-                 color='orange', linewidth=2, linestyle=':')
-
-    plt.title("Impact of Federation & Privacy on Learning Speed")
-    plt.xlabel("Timesteps")
-    plt.ylabel("Average Reward (Smoothed)")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, "comparison_benchmark_curve.png"))
-    print("Saved comparison_benchmark_curve.png")
-
-
-def plot_cluster_separability(std_data, dp_data):
-    # ... (Keep this function from previous response, it is specific to FL comparison) ...
-    # Only change: ensure it handles missing data gracefully
-    if not std_data or not dp_data:
-        return
-
-    print("Generating Distinguishability Metric...")
-
-    def get_score(data):
-        weights = data['weights']
-        labels = data['weight_labels']
-        steps = data['weight_steps']
-        last_step = np.max(steps)
-        mask = (steps == last_step)
-
-        final_weights = weights[mask]
-        final_raw = labels[mask]
-        final_groups = np.array([get_client_type(l) for l in final_raw])
-
-        if len(np.unique(final_groups)) < 2 or len(final_weights) <= len(np.unique(final_groups)):
-            return 0.0
-        return silhouette_score(final_weights, final_groups)
-
-    score_std = get_score(std_data)
-    score_dp = get_score(dp_data)
-
-    plt.figure(figsize=(8, 6))
-    plt.bar(['Standard FL', 'DP FL'], [score_std, score_dp],
-            color=['#1f77b4', '#ff7f0e'])
-    plt.title('Differentiation (Silhouette Score)')
-    plt.ylabel('Score (Higher = More Distinct)')
-    plt.savefig(os.path.join(OUTPUT_DIR, "comparison_distinguishability.png"))
-    print("Saved comparison_distinguishability.png")
-
-
-if __name__ == "__main__":
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    std_data = load_data(STANDARD_FILE)
-    dp_data = load_data(DP_FILE)
-    single_data = load_data(SINGLE_FILE)
-
-    if std_data and dp_data and single_data:
-        plot_three_way_pca(std_data, dp_data, single_data)
-        plot_performance_benchmark(std_data, dp_data, single_data)
-        plot_cluster_separability(std_data, dp_data)
-    else:
-        print("Error: Could not load all three datasets.")
-        print(
-            f"Standard: {std_data is not None}, DP: {dp_data is not None}, Single: {single_data is not None}")
-        print("Please run single_moon.py, fl_moon.py, and dp_moon.py first.")
+    plot_master_comparison(processed_datasets)

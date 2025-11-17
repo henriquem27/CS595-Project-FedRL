@@ -14,12 +14,14 @@ def run_experiment_training(TOTAL_TIMESTEPS, CHECK_FREQ, task_list):
     for i, task in enumerate(task_list):
         agent_num = i + 1
         gravity = task['gravity']
+        wind = task['wind']
         agent_label = task['label']
 
         print(f"--- Training Agent {agent_num} ({agent_label}) ---")
 
         # 1. Create the environment
-        env = gym.make("LunarLander-v3", gravity=gravity)
+        env = gym.make('LunarLander-v3', gravity=gravity,
+                       enable_wind=True, wind_power=wind)
 
 
         # 2. Create the model and callback

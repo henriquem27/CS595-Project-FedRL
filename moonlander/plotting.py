@@ -61,9 +61,27 @@ def get_display_label(full_label):
 
 PPO_BUFFER_SIZE = 2048
 
-def plot_learning_curves(data,output_filename):
+# --- Add this helper function somewhere above plot_learning_curves ---
+
+
+def get_client_type(label_str):
+    """
+    Extracts the environment 'type' from a label like 'Client_1_Moon'.
+    """
+    try:
+        # Assumes format 'Prefix_ID_Type'
+        return label_str.split('_', 2)[2]
+    except (IndexError, TypeError):
+        # Fallback for unexpected formats
+        return label_str
+
+# --- Replace your old function with this one ---
+
+
+def plot_learning_curves(data, output_filename,title):
     """
     Plots the smoothed episode rewards over Local Client Epochs (Updates).
+    Groups clients of the same type by color.
     """
     print("Generating Learning Curve plot (X-axis: Local Epochs)...")
 
@@ -73,7 +91,24 @@ def plot_learning_curves(data,output_filename):
         'label': data['ep_labels']
     })
 
-    plt.figure(figsize=(12, 7))
+    # --- NEW: Create color mapping based on client type ---
+    # 1. Get the type for every entry
+    df['type'] = df['label'].apply(get_client_type)
+
+    # 2. Find all unique types (e.g., ['Earth', 'Mars', 'Moon'])
+    unique_types = sorted(df['type'].unique())
+
+    # 3. Create a color map (e.g., {'Earth': 'blue', 'Mars': 'orange', ...})
+    # We use a standard colormap ('tab10') to get distinct colors
+    colors = plt.cm.get_cmap('tab10', len(unique_types))
+    color_map = {type_name: colors(i)
+                 for i, type_name in enumerate(unique_types)}
+
+    # --- NEW: Track which types we've added to the legend ---
+    legend_added = set()
+
+    # --- Use a larger figure for better legend placement ---
+    fig, ax = plt.subplots(figsize=(12, 7))
 
     labels = df['label'].unique()
 
@@ -84,31 +119,42 @@ def plot_learning_curves(data,output_filename):
             print(f"Warning: No episode data found for '{label}'.")
             continue
 
-        # --- CONVERT STEPS TO LOCAL EPOCHS ---
-        # "Local Epoch" = How many times the PPO agent has updated.
-        # We divide the total steps by the buffer size.
         client_df['local_epoch'] = client_df['steps'] / PPO_BUFFER_SIZE
-
-        # Calculate smoothing
         client_df['smoothed_reward'] = client_df['reward'].rolling(
             window=REWARD_SMOOTHING_WINDOW,
             min_periods=1
         ).mean()
 
-        # Plot against 'local_epoch' instead of 'steps'
-        plt.plot(
+        # --- NEW: Get type, color, and label for this plot ---
+        client_type = client_df['type'].iloc[0]  # Get this client's type
+        plot_color = color_map.get(client_type, 'gray')  # Get its color
+
+        plot_label = None  # Default to no legend entry
+        if client_type not in legend_added:
+            # If this is the first time we see this type, add it to the legend
+            plot_label = client_type
+            legend_added.add(client_type)
+
+        # --- MODIFIED: Use new color, label, and alpha ---
+        ax.plot(
             client_df['local_epoch'],
             client_df['smoothed_reward'],
-            label=f'{label}'
+            label=plot_label,      # Will be 'Moon' or None
+            color=plot_color,      # Will be the mapped color
+            alpha=0.6              # Add transparency to see overlapping lines
         )
 
-    plt.title('Federated Learning: Reward over Local Updates')
-    plt.xlabel(f'Local Client Epochs (1 Epoch = {PPO_BUFFER_SIZE} steps)')
-    plt.ylabel('Smoothed Reward')
-    plt.legend()
+    ax.set_title(f'{title}: Reward over Local Updates')
+    ax.set_xlabel(f'Local Client Epochs (1 Epoch = {PPO_BUFFER_SIZE} steps)')
+    ax.set_ylabel('Smoothed Reward')
+    ax.set_ylim(-400, 400)
+
+    # --- MODIFIED: Simpler legend, placed inside the plot ---
+    ax.legend(loc='best', title="Environment Type")
+
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
-    path=os.path.join(directory, output_filename)
+    path = os.path.join(directory, output_filename)
     os.makedirs(directory, exist_ok=True)
     plt.savefig(path)
     print("Saved 'fl_learning_curves_epochs.png'")
@@ -118,7 +164,7 @@ def plot_learning_curves(data,output_filename):
 # ===============================================
 
 
-def plot_tsne_weights(data, output_filename='tsne_weights_markers.png'):
+def plot_tsne_weights(data, output_filename,title):
     """
     Performs t-SNE on the high-dimensional weight vectors and plots them.
     Automatically adjusts perplexity for small datasets.
@@ -186,7 +232,7 @@ def plot_tsne_weights(data, output_filename='tsne_weights_markers.png'):
             vmax=np.max(steps)
         )
 
-    plt.title(f't-SNE Visualization of Model Weights (n={n_samples})')
+    plt.title(f'{title}:t-SNE Visualization of Model Weights (n={n_samples})')
     plt.xlabel('t-SNE Component 1')
     plt.ylabel('t-SNE Component 2')
 
@@ -209,7 +255,7 @@ def plot_tsne_weights(data, output_filename='tsne_weights_markers.png'):
 
 
 
-def plot_reward_vs_epoch(data,output_filename):
+def plot_reward_vs_epoch(data,output_filename,title):
     """
     Plots the AVERAGE episode reward for each client over EPOCHS (FL Rounds).
     """
@@ -248,7 +294,7 @@ def plot_reward_vs_epoch(data,output_filename):
             label=f'{get_display_label(label)}'
         )
 
-    plt.title('Federated Learning: Average Reward per Round (Epoch)')
+    plt.title(f'{title}: Average Reward per Round (Epoch)')
     plt.xlabel('Federated Learning Epoch (Round)')
     plt.ylabel('Average Reward')
     plt.legend()
@@ -259,7 +305,7 @@ def plot_reward_vs_epoch(data,output_filename):
     plt.savefig(path)
     print("Saved 'fl_reward_vs_epoch.png'")
 
-def plot_umap_weights(data,output_filename):
+def plot_umap_weights(data,output_filename,title):
     """
     Performs UMAP on the high-dimensional weight vectors and plots them
     in 2D, colored by training step and using different markers for clients.
@@ -317,7 +363,7 @@ def plot_umap_weights(data,output_filename):
             vmax=np.max(steps)
         )
 
-    plt.title('UMAP Visualization of Model Weights')
+    plt.title(f'{title}:UMAP Visualization of Model Weights')
     plt.xlabel('UMAP Component 1')
     plt.ylabel('UMAP Component 2')
 

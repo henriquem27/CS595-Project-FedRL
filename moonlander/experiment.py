@@ -2,23 +2,10 @@ from fl_moon import run_fl_experiment
 from single_moon import run_experiment_training
 from dp_moon import run_dp_fl_experiment  
 import pprint
+from clustered import run_fl_experiment_clustered
 
 def add_derived_tasks(original_list, num_to_add_per_task):
-    """
-    Loops through an original list of tasks and generates new tasks.
 
-    For each task in the original list, it creates `num_to_add_per_task`
-    new versions, each time subtracting 1 more from the client ID.
-
-    Args:
-        original_list (list): The list of task dictionaries to modify.
-        num_to_add_per_task (int): The number of new, derived tasks
-                                     to create for each original task.
-    """
-
-    # A temporary list to hold all the newly generated tasks.
-    # We do this to avoid an infinite loop by modifying the list
-    # we are iterating over.
     new_items = []
 
     # Iterate over each task in the *original* list
@@ -51,7 +38,7 @@ def add_derived_tasks(original_list, num_to_add_per_task):
 
             # Assemble the new label
             new_task['label'] = f"{base_name}_{new_id}_{suffix}"
-
+            new_task['wind'] = 0.5 + 1.5 * i  # Example: increase wind for each new task
             # Add the newly created task to our temporary list
             new_items.append(new_task)
 
@@ -65,8 +52,8 @@ if __name__ == "__main__":
     print("Running experiment.py as main script...")
 
     # 1. Define FL Hyperparameters
-    NUM_ROUNDS = 10
-    LOCAL_STEPS = 10000  # Steps *per round*
+    NUM_ROUNDS = 3
+    LOCAL_STEPS = 50000  # Steps *per round*
     CHECK_FREQ = 2000    # Log weights every 2000 steps
     total_steps = NUM_ROUNDS * LOCAL_STEPS
     # 2. Define the clients
@@ -75,14 +62,17 @@ if __name__ == "__main__":
         {
             'label': 'Client_1_Moon',
             'gravity': -1.6,
+            'wind': 0.5,
         },
         {
             'label': 'Client_2_Earth',
             'gravity': -9.8,
+            'wind': 0.5,
         },
         {
             'label': 'Client_3_Mars',
             'gravity': -3.73,
+            'wind': 0.5,
         },
         # You can add more clients just by editing this list!
         # {
@@ -90,32 +80,28 @@ if __name__ == "__main__":
         #     'mask': None
         # }
     ]
+    add_derived_tasks(task_list, num_to_add_per_task=5)
+
+    pprint.pprint(task_list)
     # single
     run_experiment_training(TOTAL_TIMESTEPS=total_steps,CHECK_FREQ=CHECK_FREQ, task_list=task_list)
 
-    fl_task_list = [
-        {
-            'label': 'Client_1_Moon',
-            'gravity': -1.6,
-        },
-        {
-            'label': 'Client_2_Earth',
-            'gravity': -9.8,
-        },
-        {
-            'label': 'Client_3_Mars',
-            'gravity': -3.73,
-        },
     
-    ]
+    
 
-    add_derived_tasks(fl_task_list, num_to_add_per_task=10)
+    add_derived_tasks(task_list, num_to_add_per_task=5)
 
-    pprint.pprint(fl_task_list)
+    
 
     # 3. Run the experiment
-    run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, fl_task_list)
+    run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list)
 
- 
+    run_fl_experiment_clustered(
+        NUM_ROUNDS,
+        CHECK_FREQ,
+        LOCAL_STEPS,
+        task_list,
+        N_CLUSTERS=3
+    )
 
-    run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, fl_task_list, DP_SENSITIVITY=150.0, DP_EPSILON=300.0)
+    run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENSITIVITY=150.0, DP_EPSILON=300.0)
