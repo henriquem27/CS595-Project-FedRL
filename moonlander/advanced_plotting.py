@@ -11,8 +11,10 @@ OUTPUT_DIR = "comparison_plots"
 DATA_FILES = {
     'Single Agent': 'training_data.npz',
     'Standard FL': 'federated_training_data.npz',
-    'Clustered FL': 'clustered_fl_training_data.npz',
-    'DP FL': 'dp_training_data.npz'
+    'DP FL epsilon=5, sensitivity=15': 'dp_training_data_ep5_sens15.npz',
+    'DP FL epsilon=10, sensitivity=15': 'dp_training_data_ep10_sens15.npz',
+    'DP FL epsilon=30, sensitivity=15': 'dp_training_data_ep15_sens15.npz',
+
 }
 
 # How to group timesteps for smoothing
@@ -28,8 +30,10 @@ REWARD_YLIM = (-400, 300)
 COLOR_MAP = {
     'Single Agent': '#2ca02c',  # Green
     'Standard FL': '#1f77b4',  # Blue
-    'Clustered FL': '#9467bd',  # Purple
-    'DP FL': '#d62728'  # Red
+    'DP FL epsilon=5, sensitivity=15': '#d62728',
+    'DP FL epsilon=10, sensitivity=15': '#ff7f0e',
+    'DP FL epsilon=30, sensitivity=15': '#2ca02c',
+
 }
 
 # Line Style will represent the *Environment*

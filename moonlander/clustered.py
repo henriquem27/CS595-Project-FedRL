@@ -128,19 +128,15 @@ if __name__ == '__main__':
     NUM_ROUNDS = 5
     LOCAL_STEPS = 10000
     CHECK_FREQ = 2000
-    N_CLUSTERS = 3  # <-- We know we have 3 environments
+    N_CLUSTERS = 3  # <-- We know we have "3" environments
 
     # 2. Define the clients (Your full list from experiment.py)
     fl_task_list = [
-        {'label': 'Client_1_Moon', 'gravity': -1.6},
-        {'label': 'Client_2_Earth', 'gravity': -9.8},
-        {'label': 'Client_3_Mars', 'gravity': -3.73},
+        {'label': 'Client_1_Moon', 'gravity': -1.6,'wind': 0.5},
+        {'label': 'Client_2_Earth', 'gravity': -9.8,'wind': 0.5},
+        {'label': 'Client_3_Mars', 'gravity': -3.73,'wind': 0.5},
         # ... add all 33 clients ...
     ]
-    # (Using the add_derived_tasks logic from experiment.py)
-    from experiment import add_derived_tasks
-    add_derived_tasks(fl_task_list, num_to_add_per_task=10)
-
     # 3. Run the experiment
     run_fl_experiment_clustered(
         NUM_ROUNDS,

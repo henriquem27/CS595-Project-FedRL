@@ -4,9 +4,11 @@ import torch as th
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3 import PPO
 from helpers import WeightStorageCallback, save_data
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.env_util import make_vec_env
 
 
-def run_experiment_training(TOTAL_TIMESTEPS, CHECK_FREQ, task_list):
+def run_experiment_training(TOTAL_TIMESTEPS, CHECK_FREQ, task_list, n_envs=16):
 
     client_callbacks = []
 
@@ -20,8 +22,10 @@ def run_experiment_training(TOTAL_TIMESTEPS, CHECK_FREQ, task_list):
         print(f"--- Training Agent {agent_num} ({agent_label}) ---")
 
         # 1. Create the environment
-        env = gym.make('LunarLander-v3', gravity=gravity,
-                       enable_wind=True, wind_power=wind)
+        # env = gym.make('LunarLander-v3', gravity=gravity,
+        #                enable_wind=True, wind_power=wind)
+        env_kwargs = {'gravity': gravity, 'enable_wind': True, 'wind_power': wind}
+        env = make_vec_env("LunarLander-v3", n_envs=n_envs, env_kwargs=env_kwargs, vec_env_cls=SubprocVecEnv)
 
 
         # 2. Create the model and callback
@@ -70,4 +74,4 @@ if __name__ == '__main__':
         # }
     ]
     run_experiment_training(TOTAL_TIMESTEPS=50000,
-                            CHECK_FREQ=500, task_list=task_list)
+                            CHECK_FREQ=500, task_list=task_list, n_envs=16)

@@ -5,9 +5,11 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3 import PPO
 from collections import OrderedDict
 from helpers import average_ordered_dicts, WeightStorageCallback,average_state_dicts,save_data
+import random   
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.env_util import make_vec_env
 
-
-def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list):
+def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task_list, n_envs=16):
 
 
     # === Model Initialization ===
@@ -31,7 +33,9 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list):
         print(f"  > Client {i+1} ({label}): Mask={gravity if gravity else 'None'}")
 
         # Create Env
-        env = gym.make('LunarLander-v3',gravity=gravity,enable_wind=True,wind_power=wind)
+        # env = gym.make('LunarLander-v3',gravity=gravity,enable_wind=True,wind_power=wind)
+        env_kwargs = {'gravity': gravity, 'enable_wind': True, 'wind_power': wind}
+        env = make_vec_env("LunarLander-v3", n_envs=n_envs, env_kwargs=env_kwargs, vec_env_cls=SubprocVecEnv)
         client_envs.append(env)
 
         # Create Client Model
@@ -44,42 +48,54 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list):
             agent_label=label
         )
         client_callbacks.append(callback)
-
-    print(f"\nStarting Federated Learning: {len(task_list)} clients, {NUM_ROUNDS} rounds, {LOCAL_STEPS} local steps per round.")
+    total_clients = len(client_models)
+    print(f"\nStarting Federated Learning: {total_clients} clients, {NUM_ROUNDS} rounds, {LOCAL_STEPS} local steps per round.")
 
     # === Federated Training Loop ===
     for round_num in range(NUM_ROUNDS):
         print(f"\n--- Round {round_num + 1}/{NUM_ROUNDS} ---")
 
+        selected_indices = random.sample(range(total_clients), clients_per_round)
+        selected_labels = [task_list[i]['label'] for i in selected_indices]
+        print(f"Selected clients: {selected_labels}")
+        active_client_state_dicts = []
         # 1. Broadcast global model weights to all clients
         global_state_dict = global_model.policy.state_dict()
-        for client in client_models:
-            client.policy.load_state_dict(global_state_dict)
 
         # 2. Local Training (loop over all clients)
-        for i, (client, callback) in enumerate(zip(client_models, client_callbacks)):
-            print(f"Training {task_list[i]['label']}...")
-            # reset_num_timesteps=False is CRUCIAL for FL.
+        for idx in selected_indices:
+            client = client_models[idx]
+            callback = client_callbacks[idx]
+            task_info = task_list[idx]
+
+            # A. Load Global Weights (Sync)
+            # In client selection, we only need to update the clients that are about to train
+            client.policy.load_state_dict(global_state_dict)
+
+            # B. Local Training
+            print(f"  Training {task_info['label']}...")
             client.learn(
                 total_timesteps=LOCAL_STEPS,
                 callback=callback,
                 reset_num_timesteps=False
             )
 
-        # 3. Aggregation (FedAvg)
-        print("Aggregating model weights...")
-        client_state_dicts = [
-            client.policy.state_dict() for client in client_models
-        ]
-
-        avg_state_dict = average_state_dicts(client_state_dicts)
+            # C. Collect weights for aggregation
+            active_client_state_dicts.append(client.policy.state_dict())
+        
+        avg_state_dict = average_state_dicts(active_client_state_dicts)
 
         # 4. Update global model
         global_model.policy.load_state_dict(avg_state_dict)
 
     print("\n--- Federated Learning Complete ---")
+    #
+    save_path = "models/fl_global_model_final.zip"
+    global_model.save(save_path)
+    print(f"Global model saved to {save_path}")
 
     # --- Data Collection and Saving (Dynamic) ---
+
 
     print("Collecting data from callbacks...")
 
@@ -108,14 +124,17 @@ if __name__ == '__main__':
         {
             'label': 'Client_1_Moon',
             'gravity': -1.6,
+            'wind': 0.5,
         },
         {
             'label': 'Client_2_Earth',
             'gravity': -9.8,
+            'wind': 0.5,
         },
         {
             'label': 'Client_3_Mars',
             'gravity': -3.73,
+            'wind': 0.5,
         },
         # You can add more clients just by editing this list!
         # {
@@ -125,4 +144,5 @@ if __name__ == '__main__':
     ]
 
     # 3. Run the experiment
-    run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, fl_task_list)
+    run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, 2,fl_task_list, n_envs=16)
+

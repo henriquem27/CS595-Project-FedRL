@@ -1,32 +1,24 @@
 import torch as th
 import gymnasium as gym
-import gymnasium_robotics
+# import gymnasium_robotics # Uncomment if needed, but not used in snippet
 import numpy as np
+import random # <--- NEW IMPORT
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3 import PPO
 from collections import OrderedDict
-from helpers import average_ordered_dicts, WeightStorageCallback,average_state_dicts,save_data,average_deltas
+from helpers import average_ordered_dicts, WeightStorageCallback, average_state_dicts, save_data, average_deltas
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.env_util import make_vec_env
 
 
-def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENSITIVITY, DP_EPSILON):
+def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENSITIVITY, DP_EPSILON, clients_per_round, n_envs=16):
     """
-    Runs a federated learning experiment with differential privacy.
-
-    Args:
-        NUM_ROUNDS (int): Number of federation rounds.
-        CHECK_FREQ (int): Frequency for callbacks to log data (in steps).
-        LOCAL_STEPS (int): Number of training steps per client per round.
-        task_list (list of dicts): Defines the clients.
-        DP_SENSITIVITY (float): L1 sensitivity (clipping bound).
-        DP_EPSILON (float): Privacy budget (epsilon).
+    Runs a federated learning experiment with differential privacy and client selection.
     """
 
     # --- Differential Privacy Setup ---
-    # The scale 'b' for Laplace noise is Sensitivity / Epsilon
-
     DP_SCALE = DP_SENSITIVITY / DP_EPSILON
-    print(
-        f"DP settings: Epsilon={DP_EPSILON}, Sensitivity={DP_SENSITIVITY}, Noise Scale={DP_SCALE:.4f}")
+    print(f"DP settings: Epsilon={DP_EPSILON}, Sensitivity={DP_SENSITIVITY}, Noise Scale={DP_SCALE:.4f}")
 
     # === Model Initialization ===
 
@@ -39,61 +31,69 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
     client_models = []
     client_envs = []
     client_callbacks = []
-
+    
+    # Removed the conflicting list initialization 'clients_per_round = []' from original snippet
+    
     print("Initializing clients...")
 
-
     for i, task in enumerate(task_list):
-            label = task['label']
-            gravity = task['gravity']
-            wind = task['wind']
-            print(
-                f"  > Client {i+1} ({label}): Mask={gravity if gravity else 'None'}")
+        label = task['label']
+        gravity = task['gravity']
+        wind = task['wind']
+        print(f"  > Client {i+1} ({label}): Mask={gravity if gravity else 'None'}")
 
-            # Create Env
-            env = gym.make('LunarLander-v3', gravity=gravity,
-                           enable_wind=True, wind_power=wind)
-            client_envs.append(env)
+        # Create Env
+        # env = gym.make('LunarLander-v3', gravity=gravity, enable_wind=True, wind_power=wind)
+        env_kwargs = {'gravity': gravity, 'enable_wind': True, 'wind_power': wind}
+        env = make_vec_env("LunarLander-v3", n_envs=n_envs, env_kwargs=env_kwargs, vec_env_cls=SubprocVecEnv)
+        client_envs.append(env)
 
-            # Create Client Model
-            client = PPO("MlpPolicy", env, verbose=0)
-            client_models.append(client)
+        # Create Client Model
+        client = PPO("MlpPolicy", env, verbose=0)
+        client_models.append(client)
 
-            # Create Callback
-            callback = WeightStorageCallback(
-                check_freq=CHECK_FREQ,
-                agent_label=label
-            )
-            client_callbacks.append(callback)
+        # Create Callback
+        callback = WeightStorageCallback(
+            check_freq=CHECK_FREQ,
+            agent_label=label
+        )
+        client_callbacks.append(callback)
 
-    print(f"\nStarting Federated Learning: {len(task_list)} clients, {NUM_ROUNDS} rounds, {LOCAL_STEPS} local steps per round.")
+    total_clients = len(task_list)
+    print(f"\nStarting Federated Learning: {total_clients} clients, selecting {clients_per_round} per round.")
 
     # === Federated Training Loop ===
     for round_num in range(NUM_ROUNDS):
         print(f"\n--- Round {round_num + 1}/{NUM_ROUNDS} ---")
 
-        # 1. Broadcast global model weights to clients
+        # 1. Select Clients
+        selected_indices = random.sample(range(total_clients), clients_per_round)
+        print(f"Selected client indices: {selected_indices}")
+
         # Keep a copy of the *original* global weights to calculate deltas
         global_state_dict = global_model.policy.state_dict()
+        
+        # List to store noisy deltas ONLY from selected clients
+        active_noisy_deltas = []
 
-        for client in client_models:
+        # 2. Loop ONLY through selected clients
+        for idx in selected_indices:
+            client = client_models[idx]
+            callback = client_callbacks[idx]
+            task_label = task_list[idx]['label']
+
+            # A. Sync: Load global weights to this client
             client.policy.load_state_dict(global_state_dict)
 
-        # 2. Local Training
-        for i, (client, callback) in enumerate(zip(client_models, client_callbacks)):
-            print(f"Training {task_list[i]['label']}...")
+            # B. Local Training
+            print(f"  Training {task_label}...")
             client.learn(
                 total_timesteps=LOCAL_STEPS,
                 callback=callback,
                 reset_num_timesteps=False
             )
 
-        # -----------------------------------------------------------------
-
-        print("Clipping and noising client deltas...")
-        noisy_deltas = []
-
-        for i, client in enumerate(client_models):
+            # C. DP Logic: Calculate Delta -> Clip -> Noise
             # Get the client's new weights
             new_weights = client.policy.state_dict()
 
@@ -107,10 +107,7 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
                 total_l1_norm += th.sum(th.abs(delta[key]))
 
             total_l1_norm = total_l1_norm.item()
-            print(
-                f"    - {task_list[i]['label']} L1 norm: {total_l1_norm:.4f}")
-
-            # --- Calculate the clipping factor ---
+            
             # Clip factor = min(1, S / ||delta||_1)
             clip_factor = min(1.0, DP_SENSITIVITY / (total_l1_norm + 1e-6))
 
@@ -119,31 +116,40 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
                 clipped_delta = delta[key] * clip_factor
 
                 noise = th.tensor(
-                    np.random.laplace(0, scale=DP_SCALE,
-                                      size=clipped_delta.shape),
+                    np.random.laplace(0, scale=DP_SCALE, size=clipped_delta.shape),
                     dtype=clipped_delta.dtype,
                     device=clipped_delta.device
                 )
                 noisy_delta[key] = clipped_delta + noise
 
-            noisy_deltas.append(noisy_delta)
+            active_noisy_deltas.append(noisy_delta)
 
         # -----------------------------------------------------------------
-        # 4. AGGREGATE and UPDATE
+        # 3. AGGREGATE and UPDATE
         # -----------------------------------------------------------------
-        print("Aggregating noisy deltas...")
-        avg_noisy_delta = average_ordered_dicts(noisy_deltas)
+        print(f"Aggregating noisy deltas from {len(active_noisy_deltas)} clients...")
+        
+        # We average the deltas from the *selected* clients
+        avg_noisy_delta = average_ordered_dicts(active_noisy_deltas)
 
         # Update global model by *adding* the average noisy delta
         new_global_state_dict = OrderedDict()
         for key in global_state_dict.keys():
-            new_global_state_dict[key] = global_state_dict[key] + \
-                avg_noisy_delta[key]
+            new_global_state_dict[key] = global_state_dict[key] + avg_noisy_delta[key]
 
         global_model.policy.load_state_dict(new_global_state_dict)
 
-    print("\n--- Federated Learning Complete ---")
-    save_data(client_callbacks, 'dp_training_data.npz')
+    # === SAVE THE GLOBAL MODEL ===
+    # This is the fix you requested to save the model for GIFs
+    model_save_name = f"models/dp_global_model_ep{int(DP_EPSILON)}.zip"
+    global_model.save(model_save_name)
+    print(f"\nGlobal model saved to: {model_save_name}")
+
+    print("--- Federated Learning Complete ---")
+    
+    # Save data
+    filename = f"dp_training_data_ep{int(DP_EPSILON)}_sens{int(DP_SENSITIVITY)}.npz"
+    save_data(client_callbacks, filename)
 
     print("Closing environments...")
     for env in client_envs:
@@ -155,37 +161,48 @@ if __name__ == '__main__':
     print("Running dp_fl_training_utils.py as main script...")
 
     # === Define FL Hyperparameters ===
-    NUM_ROUNDS = 20
+    NUM_ROUNDS = 3
     LOCAL_STEPS = 5000
-    CHECK_FREQ = 5000  # Callback check frequency
+    CHECK_FREQ = 5000
+    
+    # NEW: Number of clients to select per round
+    CLIENTS_PER_ROUND = 2 
 
     # === Define DP Hyperparameters ===
-    DP_SENSITIVITY = 150.0  # L1 clipping norm (S)
-    DP_EPSILON = 300.0      # Privacy budget
+    DP_SENSITIVITY = 15.0
+    DP_EPSILON = 30.0
 
     # === Define the Clients (Tasks) ===
-    # This list now drives the entire experiment
     fl_task_list = [
         {
             'label': 'Client_1_Moon',
             'gravity': -1.6,
+            'wind': 0.0,
         },
         {
             'label': 'Client_2_Earth',
             'gravity': -9.8,
+            'wind': 0.5,
         },
         {
             'label': 'Client_3_Mars',
             'gravity': -3.73,
+            'wind': 0.2,
         },
     ]
-    # === Run the Experiment ===
-    # (This was the missing piece in your original file)
-    run_dp_fl_experiment(
-        NUM_ROUNDS,
-        CHECK_FREQ,
-        LOCAL_STEPS,
-        fl_task_list,
-        DP_SENSITIVITY,
-        DP_EPSILON
-    )
+    
+    # Verify we aren't asking for more clients than exist
+    if CLIENTS_PER_ROUND > len(fl_task_list):
+        print("Error: CLIENTS_PER_ROUND cannot be larger than the total number of clients.")
+    else:
+        # === Run the Experiment ===
+        run_dp_fl_experiment(
+            NUM_ROUNDS,
+            CHECK_FREQ,
+            LOCAL_STEPS,
+            fl_task_list,
+            DP_SENSITIVITY,
+            DP_EPSILON,
+            CLIENTS_PER_ROUND, # Passed correctly here
+            n_envs=16
+        )
