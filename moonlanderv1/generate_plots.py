@@ -16,21 +16,21 @@ if __name__ == "__main__":
     generate_plots(data, "fl", "Federated Learning")  # Output files will be prefixed with "fl"
     print("All plots generated and saved.")
 
-    # data = np.load('training_data.npz', allow_pickle=True)
-    # print("Generating plots...")
-    # generate_plots(data, "single", "Single Client Training")  # Output files will be prefixed with "single"
-    # print("All plots generated and saved.") 
+    data = np.load('training_data.npz', allow_pickle=True)
+    print("Generating plots...")
+    generate_plots(data, "single", "Single Client Training")  # Output files will be prefixed with "single"
+    print("All plots generated and saved.") 
 
 
-    # data = np.load('dp_training_data_ep5_sens15.npz', allow_pickle=True)
-    # print("Generating plots...")
-    # generate_plots(data, "dp_ep5_sens15", "Differentially Private FL epsilon=5, sensitivity=15")  # Output files will be prefixed with "dp"
-    # print("All plots generated and saved.")
+    data = np.load('dp_training_data_ep5_sens15.npz', allow_pickle=True)
+    print("Generating plots...")
+    generate_plots(data, "dp_ep5_sens15", "Differentially Private FL epsilon=5, sensitivity=15")  # Output files will be prefixed with "dp"
+    print("All plots generated and saved.")
 
-    # data = np.load('dp_training_data_ep10_sens15.npz', allow_pickle=True)
-    # print("Generating plots...")
-    # generate_plots(data, "dp_ep10_sens15", "Differentially Private FL epsilon=10, sensitivity=15")  # Output files will be prefixed with "dp"
-    # print("All plots generated and saved.")
+    data = np.load('dp_training_data_ep10_sens15.npz', allow_pickle=True)
+    print("Generating plots...")
+    generate_plots(data, "dp_ep10_sens15", "Differentially Private FL epsilon=10, sensitivity=15")  # Output files will be prefixed with "dp"
+    print("All plots generated and saved.")
 
     data = np.load('dp_training_data_ep30_sens15.npz', allow_pickle=True)
     print("Generating plots...")

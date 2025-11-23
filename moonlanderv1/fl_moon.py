@@ -6,10 +6,8 @@ from stable_baselines3 import PPO
 from collections import OrderedDict
 from helpers import average_ordered_dicts, WeightStorageCallback,average_state_dicts,save_data
 import random   
-from stable_baselines3.common.vec_env import SubprocVecEnv
-from stable_baselines3.common.env_util import make_vec_env
 
-def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task_list, n_envs=16):
+def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task_list):
 
 
     # === Model Initialization ===
@@ -22,7 +20,7 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task
 
     # 2. Create Client Models, Envs, and Callbacks dynamically
     client_models = []
-    # client_envs = [] # We will create these on the fly
+    client_envs = []
     client_callbacks = []
 
     print("Initializing clients...")
@@ -32,16 +30,13 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task
         wind = task['wind']
         print(f"  > Client {i+1} ({label}): Mask={gravity if gravity else 'None'}")
 
-        # Create a dummy env for initialization
-        temp_env = gym.make("LunarLander-v3")
-        
-        # Create Client Model with dummy env
-        client = PPO("MlpPolicy", temp_env, verbose=0)
+        # Create Env
+        env = gym.make('LunarLander-v3',gravity=gravity,enable_wind=True,wind_power=wind)
+        client_envs.append(env)
+
+        # Create Client Model
+        client = PPO("MlpPolicy", env, verbose=0)
         client_models.append(client)
-        
-        # Close the dummy env and detach it
-        temp_env.close()
-        client.set_env(None)
 
         # Create Callback
         callback = WeightStorageCallback(
@@ -49,7 +44,6 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task
             agent_label=label
         )
         client_callbacks.append(callback)
-        
     total_clients = len(client_models)
     print(f"\nStarting Federated Learning: {total_clients} clients, {NUM_ROUNDS} rounds, {LOCAL_STEPS} local steps per round.")
 
@@ -69,39 +63,21 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task
             client = client_models[idx]
             callback = client_callbacks[idx]
             task_info = task_list[idx]
-            
-            # --- LAZY LOAD ENV ---
-            gravity = task_info['gravity']
-            wind = task_info['wind']
-            env_kwargs = {'gravity': gravity, 'enable_wind': True, 'wind_power': wind}
-            
-            # Create the vectorized environment for this specific training step
-            try:
-                env = make_vec_env("LunarLander-v3", n_envs=n_envs, env_kwargs=env_kwargs, vec_env_cls=SubprocVecEnv)
-                client.set_env(env)
 
-                # A. Load Global Weights (Sync)
-                # In client selection, we only need to update the clients that are about to train
-                client.policy.load_state_dict(global_state_dict)
+            # A. Load Global Weights (Sync)
+            # In client selection, we only need to update the clients that are about to train
+            client.policy.load_state_dict(global_state_dict)
 
-                # B. Local Training
-                print(f"  Training {task_info['label']}...")
-                client.learn(
-                    total_timesteps=LOCAL_STEPS,
-                    callback=callback,
-                    reset_num_timesteps=False
-                )
+            # B. Local Training
+            print(f"  Training {task_info['label']}...")
+            client.learn(
+                total_timesteps=LOCAL_STEPS,
+                callback=callback,
+                reset_num_timesteps=False
+            )
 
-                # C. Collect weights for aggregation
-                active_client_state_dicts.append(client.policy.state_dict())
-            
-            finally:
-                # --- CLEANUP ENV ---
-                # Important: Close the env to release file descriptors/processes
-                if env:
-                    env.close()
-                # Detach env from model so it doesn't hold a reference
-                client.set_env(None)
+            # C. Collect weights for aggregation
+            active_client_state_dicts.append(client.policy.state_dict())
         
         avg_state_dict = average_state_dicts(active_client_state_dicts)
 
@@ -124,7 +100,8 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task
 
     # Clean up all environments
     print("Closing environments...")
-    # No need to close client_envs list as we didn't keep them
+    for env in client_envs:
+        env.close()
     print("All environments closed.")
 
 
@@ -163,5 +140,5 @@ if __name__ == '__main__':
     ]
 
     # 3. Run the experiment
-    run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, 2,fl_task_list, n_envs=16)
+    run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, 2,fl_task_list)
 

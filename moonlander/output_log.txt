@@ -1,0 +1,55 @@
+Running experiment.py sequentially (No Parallelism)...
+Added 30 new tasks.
+[{'gravity': -1.6, 'label': 'Client_1_Moon', 'wind': 0.5},
+ {'gravity': -9.8, 'label': 'Client_2_Earth', 'wind': 0.5},
+ {'gravity': -3.73, 'label': 'Client_3_Mars', 'wind': 0.5},
+ {'gravity': -1.6, 'label': 'Client_0_Moon', 'wind': 3},
+ {'gravity': -1.6, 'label': 'Client_-1_Moon', 'wind': 0},
+ {'gravity': -1.6, 'label': 'Client_-2_Moon', 'wind': 7},
+ {'gravity': -1.6, 'label': 'Client_-3_Moon', 'wind': 6},
+ {'gravity': -1.6, 'label': 'Client_-4_Moon', 'wind': 5},
+ {'gravity': -1.6, 'label': 'Client_-5_Moon', 'wind': 1},
+ {'gravity': -1.6, 'label': 'Client_-6_Moon', 'wind': 14},
+ {'gravity': -1.6, 'label': 'Client_-7_Moon', 'wind': 13},
+ {'gravity': -1.6, 'label': 'Client_-8_Moon', 'wind': 15},
+ {'gravity': -1.6, 'label': 'Client_-9_Moon', 'wind': 15},
+ {'gravity': -9.8, 'label': 'Client_1_Earth', 'wind': 13},
+ {'gravity': -9.8, 'label': 'Client_0_Earth', 'wind': 14},
+ {'gravity': -9.8, 'label': 'Client_-1_Earth', 'wind': 7},
+ {'gravity': -9.8, 'label': 'Client_-2_Earth', 'wind': 11},
+ {'gravity': -9.8, 'label': 'Client_-3_Earth', 'wind': 14},
+ {'gravity': -9.8, 'label': 'Client_-4_Earth', 'wind': 2},
+ {'gravity': -9.8, 'label': 'Client_-5_Earth', 'wind': 10},
+ {'gravity': -9.8, 'label': 'Client_-6_Earth', 'wind': 6},
+ {'gravity': -9.8, 'label': 'Client_-7_Earth', 'wind': 3},
+ {'gravity': -9.8, 'label': 'Client_-8_Earth', 'wind': 6},
+ {'gravity': -3.73, 'label': 'Client_2_Mars', 'wind': 1},
+ {'gravity': -3.73, 'label': 'Client_1_Mars', 'wind': 15},
+ {'gravity': -3.73, 'label': 'Client_0_Mars', 'wind': 2},
+ {'gravity': -3.73, 'label': 'Client_-1_Mars', 'wind': 2},
+ {'gravity': -3.73, 'label': 'Client_-2_Mars', 'wind': 12},
+ {'gravity': -3.73, 'label': 'Client_-3_Mars', 'wind': 1},
+ {'gravity': -3.73, 'label': 'Client_-4_Mars', 'wind': 13},
+ {'gravity': -3.73, 'label': 'Client_-5_Mars', 'wind': 10},
+ {'gravity': -3.73, 'label': 'Client_-6_Mars', 'wind': 6},
+ {'gravity': -3.73, 'label': 'Client_-7_Mars', 'wind': 9}]
+
+>>> Starting FL Experiment...
+Initializing clients...
+  > Client 1 (Client_1_Moon): Mask=-1.6
+Process ForkServerProcess-1:
+Traceback (most recent call last):
+  File "/Users/henriquerio/miniconda3/lib/python3.11/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/henriquerio/miniconda3/lib/python3.11/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/henriquerio/Documents/IIT/CS595-Project-FedRL/rlproject/lib/python3.11/site-packages/stable_baselines3/common/vec_env/subproc_vec_env.py", line 55, in _worker
+    remote.send((env.observation_space, env.action_space))
+  File "/Users/henriquerio/miniconda3/lib/python3.11/multiprocessing/connection.py", line 206, in send
+    self._send_bytes(_ForkingPickler.dumps(obj))
+  File "/Users/henriquerio/miniconda3/lib/python3.11/multiprocessing/connection.py", line 427, in _send_bytes
+    self._send(header + buf)
+  File "/Users/henriquerio/miniconda3/lib/python3.11/multiprocessing/connection.py", line 384, in _send
+    n = write(self._handle, buf)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+BrokenPipeError: [Errno 32] Broken pipe

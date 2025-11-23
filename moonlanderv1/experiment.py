@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # Copy for single agent
     
 
-    n_envs = 4
+
 
     # ==========================================
     # EXPERIMENT 2: Standard FL
@@ -74,8 +74,7 @@ if __name__ == "__main__":
             CHECK_FREQ=CHECK_FREQ, 
             LOCAL_STEPS=LOCAL_STEPS, 
             task_list=task_list,
-            clients_per_round=clients_per_round,
-            n_envs=n_envs
+            clients_per_round=clients_per_round
         )
         elapsed_time = time.perf_counter() - start_time
         execution_times.append({"Function": "FL", "Time": elapsed_time})
@@ -97,8 +96,7 @@ if __name__ == "__main__":
             task_list=task_list, 
             DP_SENSITIVITY=15.0, 
             DP_EPSILON=30.0,
-            clients_per_round=clients_per_round,
-            n_envs=n_envs
+            clients_per_round=clients_per_round
         )
         elapsed_time = time.perf_counter() - start_time
         execution_times.append({"Function": "DP FL 1", "Time": elapsed_time})
@@ -120,8 +118,7 @@ if __name__ == "__main__":
             task_list=task_list, 
             DP_SENSITIVITY=15.0, 
             DP_EPSILON=10.0,
-            clients_per_round=clients_per_round,
-            n_envs=n_envs
+            clients_per_round=clients_per_round
         )
         elapsed_time = time.perf_counter() - start_time
         execution_times.append({"Function": "DP FL 2", "Time": elapsed_time})
@@ -143,8 +140,7 @@ if __name__ == "__main__":
             task_list=task_list, 
             DP_SENSITIVITY=15.0, 
             DP_EPSILON=5.0,
-            clients_per_round=clients_per_round,
-            n_envs=n_envs
+            clients_per_round=clients_per_round
         )
         elapsed_time = time.perf_counter() - start_time
         execution_times.append({"Function": "DP FL 3", "Time": elapsed_time})
@@ -162,8 +158,7 @@ if __name__ == "__main__":
         run_experiment_training(
             TOTAL_TIMESTEPS=total_steps,
             CHECK_FREQ=CHECK_FREQ, 
-            task_list=task_list_single,
-            n_envs=n_envs    
+            task_list=task_list_single    
         )
         elapsed_time = time.perf_counter() - start_time
         execution_times.append({"Function": "Single Agent", "Time": elapsed_time})

@@ -7,11 +7,9 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3 import PPO
 from collections import OrderedDict
 from helpers import average_ordered_dicts, WeightStorageCallback, average_state_dicts, save_data, average_deltas
-from stable_baselines3.common.vec_env import SubprocVecEnv
-from stable_baselines3.common.env_util import make_vec_env
 
 
-def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENSITIVITY, DP_EPSILON, clients_per_round, n_envs=16):
+def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENSITIVITY, DP_EPSILON, clients_per_round):
     """
     Runs a federated learning experiment with differential privacy and client selection.
     """
@@ -29,7 +27,7 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
 
     # 2. Create Client Models, Envs, and Callbacks dynamically
     client_models = []
-    # client_envs = [] # Lazy load
+    client_envs = []
     client_callbacks = []
     
     # Removed the conflicting list initialization 'clients_per_round = []' from original snippet
@@ -42,16 +40,13 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
         wind = task['wind']
         print(f"  > Client {i+1} ({label}): Mask={gravity if gravity else 'None'}")
 
-        # Create Dummy Env for initialization
-        temp_env = gym.make("LunarLander-v3")
-        
+        # Create Env
+        env = gym.make('LunarLander-v3', gravity=gravity, enable_wind=True, wind_power=wind)
+        client_envs.append(env)
+
         # Create Client Model
-        client = PPO("MlpPolicy", temp_env, verbose=0)
+        client = PPO("MlpPolicy", env, verbose=0)
         client_models.append(client)
-        
-        # Close dummy env
-        temp_env.close()
-        client.set_env(None)
 
         # Create Callback
         callback = WeightStorageCallback(
@@ -82,64 +77,48 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
             client = client_models[idx]
             callback = client_callbacks[idx]
             task_label = task_list[idx]['label']
-            task_info = task_list[idx]
 
-            # --- LAZY LOAD ENV ---
-            gravity = task_info['gravity']
-            wind = task_info['wind']
-            env_kwargs = {'gravity': gravity, 'enable_wind': True, 'wind_power': wind}
+            # A. Sync: Load global weights to this client
+            client.policy.load_state_dict(global_state_dict)
+
+            # B. Local Training
+            print(f"  Training {task_label}...")
+            client.learn(
+                total_timesteps=LOCAL_STEPS,
+                callback=callback,
+                reset_num_timesteps=False
+            )
+
+            # C. DP Logic: Calculate Delta -> Clip -> Noise
+            # Get the client's new weights
+            new_weights = client.policy.state_dict()
+
+            delta = OrderedDict()
+            noisy_delta = OrderedDict()
+            total_l1_norm = 0.0
+
+            # --- First pass: Calculate delta and its total L1 norm ---
+            for key in global_state_dict.keys():
+                delta[key] = new_weights[key] - global_state_dict[key]
+                total_l1_norm += th.sum(th.abs(delta[key]))
+
+            total_l1_norm = total_l1_norm.item()
             
-            try:
-                env = make_vec_env("LunarLander-v3", n_envs=n_envs, env_kwargs=env_kwargs, vec_env_cls=SubprocVecEnv)
-                client.set_env(env)
+            # Clip factor = min(1, S / ||delta||_1)
+            clip_factor = min(1.0, DP_SENSITIVITY / (total_l1_norm + 1e-6))
 
-                # A. Sync: Load global weights to this client
-                client.policy.load_state_dict(global_state_dict)
+            # --- Second pass: Apply clipping and add Laplace noise ---
+            for key in delta.keys():
+                clipped_delta = delta[key] * clip_factor
 
-                # B. Local Training
-                print(f"  Training {task_label}...")
-                client.learn(
-                    total_timesteps=LOCAL_STEPS,
-                    callback=callback,
-                    reset_num_timesteps=False
+                noise = th.tensor(
+                    np.random.laplace(0, scale=DP_SCALE, size=clipped_delta.shape),
+                    dtype=clipped_delta.dtype,
+                    device=clipped_delta.device
                 )
+                noisy_delta[key] = clipped_delta + noise
 
-                # C. DP Logic: Calculate Delta -> Clip -> Noise
-                # Get the client's new weights
-                new_weights = client.policy.state_dict()
-
-                delta = OrderedDict()
-                noisy_delta = OrderedDict()
-                total_l1_norm = 0.0
-
-                # --- First pass: Calculate delta and its total L1 norm ---
-                for key in global_state_dict.keys():
-                    delta[key] = new_weights[key] - global_state_dict[key]
-                    total_l1_norm += th.sum(th.abs(delta[key]))
-
-                total_l1_norm = total_l1_norm.item()
-                
-                # Clip factor = min(1, S / ||delta||_1)
-                clip_factor = min(1.0, DP_SENSITIVITY / (total_l1_norm + 1e-6))
-
-                # --- Second pass: Apply clipping and add Laplace noise ---
-                for key in delta.keys():
-                    clipped_delta = delta[key] * clip_factor
-
-                    noise = th.tensor(
-                        np.random.laplace(0, scale=DP_SCALE, size=clipped_delta.shape),
-                        dtype=clipped_delta.dtype,
-                        device=clipped_delta.device
-                    )
-                    noisy_delta[key] = clipped_delta + noise
-
-                active_noisy_deltas.append(noisy_delta)
-            
-            finally:
-                # --- CLEANUP ENV ---
-                if env:
-                    env.close()
-                client.set_env(None)
+            active_noisy_deltas.append(noisy_delta)
 
         # -----------------------------------------------------------------
         # 3. AGGREGATE and UPDATE
@@ -169,8 +148,8 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
     save_data(client_callbacks, filename)
 
     print("Closing environments...")
-    # for env in client_envs:
-    #     env.close()
+    for env in client_envs:
+        env.close()
 
 
 if __name__ == '__main__':
@@ -220,6 +199,5 @@ if __name__ == '__main__':
             fl_task_list,
             DP_SENSITIVITY,
             DP_EPSILON,
-            CLIENTS_PER_ROUND, # Passed correctly here
-            n_envs=16
+            CLIENTS_PER_ROUND # Passed correctly here
         )

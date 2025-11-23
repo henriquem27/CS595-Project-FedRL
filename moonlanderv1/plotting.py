@@ -86,7 +86,7 @@ def plot_learning_curves(data, output_filename="learning_curve.png", title="FRL"
     ax.set_title(f'{title}: Reward over Local Updates')
     ax.set_xlabel('Local Client Epochs')
     ax.set_ylabel('Smoothed Reward')
-    # ax.set_ylim(-400, 400)
+    ax.set_ylim(-400, 400)
     ax.legend(loc='best', title="Environment Type")
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.tight_layout()
