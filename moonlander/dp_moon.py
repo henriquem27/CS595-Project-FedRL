@@ -51,7 +51,7 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
         
         # Close dummy env
         temp_env.close()
-        client.set_env(None)
+        # client.set_env(None) # Caused error
 
         # Create Callback
         callback = WeightStorageCallback(
@@ -169,8 +169,9 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
     save_data(client_callbacks, filename)
 
     print("Closing environments...")
-    # for env in client_envs:
-    #     env.close()
+    for env in client_envs:
+        env.close()
+    print("All environments closed.")
 
 
 if __name__ == '__main__':

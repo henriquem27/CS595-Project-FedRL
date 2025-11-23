@@ -8,6 +8,29 @@ import pprint
 import random
 import time
 
+import multiprocessing
+import torch # Assuming you use PyTorch
+import gc
+
+def run_isolated(target_func, kwargs):
+    """
+    Runs a function in a separate process to ensure complete resource 
+    cleanup (GPU, RAM, Threads) upon completion.
+    """
+    # Create the process
+    p = multiprocessing.Process(target=target_func, kwargs=kwargs)
+    p.start()
+    p.join() # Wait for the process to finish
+    
+    # Check exit code. 0 means success, anything else is an error.
+    if p.exitcode != 0:
+        raise RuntimeError(f"Process for {target_func.__name__} failed with exit code {p.exitcode}")
+    
+    # Optional: Cleanup in the main process just in case
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        
 def add_derived_tasks(original_list, num_to_add_per_task):
     new_items = []
     # Iterate over each task in the *original* list
@@ -41,7 +64,7 @@ if __name__ == "__main__":
     execution_times = []
 
     # 1. Define FL Hyperparameters
-    NUM_ROUNDS = 100
+    NUM_ROUNDS = 2
     LOCAL_STEPS = 50000
     CHECK_FREQ = 2000    
     total_steps = NUM_ROUNDS * LOCAL_STEPS
@@ -162,7 +185,7 @@ if __name__ == "__main__":
         run_experiment_training(
             TOTAL_TIMESTEPS=total_steps,
             CHECK_FREQ=CHECK_FREQ, 
-            task_list=task_list_single,
+            task_list=single_task_list,
             n_envs=n_envs    
         )
         elapsed_time = time.perf_counter() - start_time

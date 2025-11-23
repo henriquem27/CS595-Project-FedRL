@@ -1,0 +1,5 @@
+Function: FL, FAILED, Error: The environment is of type <class 'NoneType'>, not a Gymnasium environment. In this case, we expect OpenAI Gym to be installed and the environment to be an OpenAI Gym environment.
+Function: DP FL 1, FAILED, Error: The environment is of type <class 'NoneType'>, not a Gymnasium environment. In this case, we expect OpenAI Gym to be installed and the environment to be an OpenAI Gym environment.
+Function: DP FL 2, FAILED, Error: The environment is of type <class 'NoneType'>, not a Gymnasium environment. In this case, we expect OpenAI Gym to be installed and the environment to be an OpenAI Gym environment.
+Function: DP FL 3, FAILED, Error: The environment is of type <class 'NoneType'>, not a Gymnasium environment. In this case, we expect OpenAI Gym to be installed and the environment to be an OpenAI Gym environment.
+Function: Single Agent, FAILED, Error: name 'task_list_single' is not defined

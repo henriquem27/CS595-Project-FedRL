@@ -41,7 +41,7 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task
         
         # Close the dummy env and detach it
         temp_env.close()
-        client.set_env(None)
+        # client.set_env(None) # Caused error
 
         # Create Callback
         callback = WeightStorageCallback(
@@ -124,6 +124,9 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task
 
     # Clean up all environments
     print("Closing environments...")
+
+    for env in client_models:
+        env.close()
     # No need to close client_envs list as we didn't keep them
     print("All environments closed.")
 
