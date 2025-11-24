@@ -7,7 +7,7 @@ from collections import OrderedDict
 from helpers import average_ordered_dicts, WeightStorageCallback,average_state_dicts,save_data
 import random   
 
-def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task_list):
+def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task_list,n_envs):
 
 
     # === Model Initialization ===
@@ -31,7 +31,7 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS,clients_per_round,task
         print(f"  > Client {i+1} ({label}): Mask={gravity if gravity else 'None'}")
 
         # Create Env
-        env = gym.make('LunarLander-v3',gravity=gravity,enable_wind=True,wind_power=wind)
+        env = gym.make('LunarLander-v3',n_envs=n_envs,gravity=gravity,enable_wind=True,wind_power=wind)
         client_envs.append(env)
 
         # Create Client Model

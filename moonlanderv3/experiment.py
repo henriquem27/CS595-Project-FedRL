@@ -1,21 +1,16 @@
-
-# --- Imports ---
 from fl_moon import run_fl_experiment
-from single_moon import run_experiment_training
-from dp_moon import run_dp_fl_experiment  
-import pprint
-# from clustered import run_fl_experiment_clustered # Uncomment if needed
+from dp_moon import run_dp_fl_experiment
+from single_moon import run_experiment_training 
 import random
 import time
-
 import multiprocessing
 import torch # Assuming you use PyTorch
-import gc
+import gc   
+import pprint
+import os
+import json
 
-
-
-
-def run_isolated(target_func, kwargs):
+def run_isolated(   target_func, kwargs):
     """
     Runs a function in a separate process to ensure complete resource 
     cleanup (GPU, RAM, Threads) upon completion.
@@ -43,9 +38,9 @@ def add_derived_tasks(original_list, num_to_add_per_task):
         # Try to parse the label
         try:
             parts = new_task_base['label'].split('_')
-            base_name = parts[0]  # e.g., "Client"
-            current_id = int(parts[1])  # e.g., 1
-            suffix = parts[2]  # e.g., "Moon"
+            base_name = parts[0]  
+            current_id = int(parts[1])  
+            suffix = parts[2]  
         except (IndexError, ValueError, TypeError):
             print(f"Skipping task with unexpected label: {task.get('label')}")
             continue
@@ -62,34 +57,38 @@ def add_derived_tasks(original_list, num_to_add_per_task):
     original_list.extend(new_items)
     print(f"Added {len(new_items)} new tasks.")
 
+
 if __name__ == "__main__":
     print("Running experiment.py sequentially (Process Isolated)...")
     execution_times = []
-
-    # 1. Define FL Hyperparameters
-    NUM_ROUNDS = 20
-    LOCAL_STEPS = 25000
-    CHECK_FREQ = 2000    
-    total_steps = NUM_ROUNDS * LOCAL_STEPS
     
-    # 2. Define the clients
-    task_list = [
+    NUM_ROUNDS = 100
+    LOCAL_STEPS = 12500
+    CHECK_FREQ = 2000    
+    TOTAL_TIMESTEPS = NUM_ROUNDS * LOCAL_STEPS
+    
+
+    single_task_list = [
         {'label': 'Client_1_Moon', 'gravity': -1.6, 'wind': 0.5},
         {'label': 'Client_2_Earth', 'gravity': -9.8, 'wind': 0.5},
         {'label': 'Client_3_Mars', 'gravity': -3.73, 'wind': 0.5},
     ]
-    
-    # Create a deep copy for the single agent so it doesn't get modified by add_derived_tasks
-    import copy
-    task_list_single = copy.deepcopy(task_list)
+
+    task_list = single_task_list.copy()
     
     add_derived_tasks(task_list, num_to_add_per_task=4)
-    clients_per_round = int(len(task_list))
+    clients_per_round = int(len(task_list)/2)
     pprint.pprint(task_list)
 
-    # ==========================================
-    # EXPERIMENT 2: Standard FL
-    # ==========================================
+    print("\nSaving task_list to JSON file...")
+    try:
+        with open("task_list.json", "w") as f:
+            json.dump(task_list, f, indent=4)
+        print(">>> task_list saved to task_list.json")
+    except Exception as e:
+        print(f"!!! Failed to save task_list: {e}")
+
+
     print("\n>>> Starting FL Experiment...")
     start_time = time.perf_counter()
     try:
@@ -112,9 +111,9 @@ if __name__ == "__main__":
         execution_times.append({"Function": "FL", "Time": 0.0, "Error": str(e)})
 
     # ==========================================
-    # EXPERIMENT 3: DP FL (Epsilon 30)
+    # EXPERIMENT 2: DP FL (Epsilon 30, Sensitivity 15)
     # ==========================================
-    print("\n>>> Starting DP FL Experiment (Ep=30)...")
+    print("\n>>> Starting DP FL Experiment (Ep=30, Sens=15)...")
     start_time = time.perf_counter()
     try:
         run_isolated(
@@ -136,10 +135,11 @@ if __name__ == "__main__":
         print(f"!!! DP FL 1 Failed: {e}")
         execution_times.append({"Function": "DP FL 1", "Time": 0.0, "Error": str(e)})
 
+
         # ==========================================
-    # EXPERIMENT 3: DP FL (Epsilon 30)
+    # EXPERIMENT 2: DP FL (Epsilon 30, Sensitivity 15)
     # ==========================================
-    print("\n>>> Starting DP FL Experiment (Sensitivity=20, Epsilon=30)...")
+    print("\n>>> Starting DP FL Experiment (Ep=30, Sens=10)...")
     start_time = time.perf_counter()
     try:
         run_isolated(
@@ -149,22 +149,22 @@ if __name__ == "__main__":
                 'CHECK_FREQ': CHECK_FREQ, 
                 'LOCAL_STEPS': LOCAL_STEPS, 
                 'task_list': task_list, 
-                'DP_SENSITIVITY': 20.0, 
+                'DP_SENSITIVITY': 10.0, 
                 'DP_EPSILON': 30.0,
                 'clients_per_round': clients_per_round
             }
         )
         elapsed_time = time.perf_counter() - start_time
         execution_times.append({"Function": "DP FL 2", "Time": elapsed_time})
-        print(f">>> DP FL 1 Finished in {elapsed_time:.2f}s")
-        
+        print(f">>> DP FL 2 Finished in {elapsed_time:.2f}s")
     except Exception as e:
-        print(f"!!! DP FL 1 Failed: {e}")
+        print(f"!!! DP FL 2 Failed: {e}")
         execution_times.append({"Function": "DP FL 2", "Time": 0.0, "Error": str(e)})
-           # ==========================================
-    # EXPERIMENT 3: DP FL (Epsilon 30)
+
     # ==========================================
-    print("\n>>> Starting DP FL Experiment (Sensitivity=30, Epsilon=30)...")
+    # EXPERIMENT 3: DP FL (Epsilon 30, Sensitivity 5)
+    # ==========================================
+    print("\n>>> Starting DP FL Experiment (Ep=30, Sens=5)...")
     start_time = time.perf_counter()
     try:
         run_isolated(
@@ -174,40 +174,62 @@ if __name__ == "__main__":
                 'CHECK_FREQ': CHECK_FREQ, 
                 'LOCAL_STEPS': LOCAL_STEPS, 
                 'task_list': task_list, 
-                'DP_SENSITIVITY': 30.0, 
+                'DP_SENSITIVITY': 5.0, 
                 'DP_EPSILON': 30.0,
                 'clients_per_round': clients_per_round
             }
         )
         elapsed_time = time.perf_counter() - start_time
         execution_times.append({"Function": "DP FL 3", "Time": elapsed_time})
-        print(f">>> DP FL 2 Finished in {elapsed_time:.2f}s")
-        
+        print(f">>> DP FL 3 Finished in {elapsed_time:.2f}s")
     except Exception as e:
-        print(f"!!! DP FL 1 Failed: {e}")
+        print(f"!!! DP FL 3 Failed: {e}")
         execution_times.append({"Function": "DP FL 3", "Time": 0.0, "Error": str(e)})
+
     # ==========================================
-    # EXPERIMENT 1: Single Agent
+    # EXPERIMENT 4: DP FL (Epsilon 30, Sensitivity 1)
     # ==========================================
-    print("\n>>> Starting Single Agent Experiment...")
+    print("\n>>> Starting DP FL Experiment (Ep=30, Sens=1)...")
+    start_time = time.perf_counter()
+    try:
+        run_isolated(
+            target_func=run_dp_fl_experiment,
+            kwargs={
+                'NUM_ROUNDS': NUM_ROUNDS, 
+                'CHECK_FREQ': CHECK_FREQ, 
+                'LOCAL_STEPS': LOCAL_STEPS, 
+                'task_list': task_list, 
+                'DP_SENSITIVITY': 1.0, 
+                'DP_EPSILON': 30.0,
+                'clients_per_round': clients_per_round
+            }
+        )
+        elapsed_time = time.perf_counter() - start_time
+        execution_times.append({"Function": "DP FL 4", "Time": elapsed_time})
+        print(f">>> DP FL 4 Finished in {elapsed_time:.2f}s")
+    except Exception as e:
+        print(f"!!! DP FL 4 Failed: {e}")
+        execution_times.append({"Function": "DP FL 4", "Time": 0.0, "Error": str(e)})
+    
+    print("\n>>> Starting Single Moon Experiment...")
     start_time = time.perf_counter()
     try:
         run_isolated(
             target_func=run_experiment_training,
             kwargs={
-                'TOTAL_TIMESTEPS': total_steps,
+                'TOTAL_TIMESTEPS': TOTAL_TIMESTEPS, 
                 'CHECK_FREQ': CHECK_FREQ, 
-                'task_list': task_list_single    
+                'task_list': task_list, 
+                'experiment_name': "single_moon"
             }
         )
         elapsed_time = time.perf_counter() - start_time
-        execution_times.append({"Function": "Single Agent", "Time": elapsed_time})
-        print(f">>> Single Agent Finished in {elapsed_time:.2f}s")
+        execution_times.append({"Function": "Single Moon", "Time": elapsed_time})
+        print(f">>> Single Moon Finished in {elapsed_time:.2f}s")
     except Exception as e:
-        print(f"!!! Single Agent Failed: {e}")
-        execution_times.append({"Function": "Single Agent", "Time": 0.0, "Error": str(e)})
-
-
+        print(f"!!! Single Moon Failed: {e}")
+        execution_times.append({"Function": "Single Moon", "Time": 0.0, "Error": str(e)})
+        
 
     # ==========================================
     # LOGGING

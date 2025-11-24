@@ -1,60 +1,60 @@
 import torch as th
 import gymnasium as gym
 import numpy as np
-import os  # Needed for CPU detection
+import os
 import random
-from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.env_util import make_vec_env  # Essential for dynamic loading
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from stable_baselines3 import PPO
+from stable_baselines3.common.env_util import make_vec_env
 from collections import OrderedDict
-from helpers import average_ordered_dicts, WeightStorageCallback, save_data
+
+# Import the new logging classes
+from helpers import average_ordered_dicts, ExperimentLogger, StreamingCallback
 from helpers import DynamicLunarLander
+
+# --- THREADING SETTINGS ---
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
 os.environ['NUMEXPR_NUM_THREADS'] = '1'
-def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENSITIVITY, DP_EPSILON, clients_per_round):
+
+def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENSITIVITY, DP_EPSILON, clients_per_round, experiment_name="dp_fl_run"):
     
+    experiment_name = f"dp_fl_sens{DP_SENSITIVITY}_eps{DP_EPSILON}"
+
     # --- 1. SETUP ---
-    # Since we fixed the threads, we can safely go higher than 32 now.
-    # The R750 has plenty of cores.
     MAX_CPUS = os.cpu_count()
-    N_ENVS = MAX_CPUS-1  
+    N_ENVS = max(1, MAX_CPUS - 2)  # Safety buffer
     
     print(f"System detected {MAX_CPUS} CPUs. Using {N_ENVS} Persistent Environments.")
 
-    # --- 2. INITIALIZE GLOBAL MODEL ---
+    # --- 2. INITIALIZE LOGGER & GLOBAL MODEL ---
+    # Create the logger (folders: logs/exp_name/weights/ & logs/exp_name/metrics/)
+    logger = ExperimentLogger(experiment_name=experiment_name)
+
     dummy_env = make_vec_env(DynamicLunarLander, n_envs=N_ENVS, vec_env_cls=DummyVecEnv)
     global_model = PPO("MlpPolicy", dummy_env, verbose=0)
     
     # --- 3. INITIALIZE PERSISTENT TRAINING POOL ---
-    # We create this ONCE. We will not close it until the very end.
-    print(f"Spinning up {N_ENVS} persistent worker processes (this takes 5s)...")
-    
-    # We pass DynamicLunarLander class directly
+    print(f"Spinning up {N_ENVS} persistent worker processes...")
     training_vec_env = make_vec_env(
         DynamicLunarLander,
         n_envs=N_ENVS,
         vec_env_cls=SubprocVecEnv,
-        # Initialize with default values, we will overwrite them immediately
         env_kwargs={'gravity': -10.0, 'enable_wind': True, 'wind_power': 0.0}
     )
 
-    # Initialize Client Models
+    # Initialize Client Models (Placeholders)
     client_models = []
-    client_callbacks = []
+    # We no longer need 'client_callbacks' list; we create them dynamically per round.
     print("Initializing client placeholders...")
     for i, task in enumerate(task_list):
-        # Clients share the dummy structure for weights
         client = PPO("MlpPolicy", dummy_env, verbose=0)
         client_models.append(client)
-        
-        callback = WeightStorageCallback(check_freq=CHECK_FREQ, agent_label=task['label'])
-        client_callbacks.append(callback)
 
     total_clients = len(task_list)
+    print(f"\nStarting DP-FL: {total_clients} clients, {NUM_ROUNDS} rounds. Logging to /logs/{experiment_name}")
 
     # === FEDERATED LOOP ===
     for round_num in range(NUM_ROUNDS):
@@ -69,41 +69,44 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
 
         for idx in selected_indices:
             client = client_models[idx]
-            callback = client_callbacks[idx]
             task_info = task_list[idx]
 
             # A. Sync Weights
             client.policy.load_state_dict(global_state_dict)
 
             # B. HOT-SWAP THE ENVIRONMENT
-            # Instead of making a new env, we tell the existing 64 processes 
-            # to update their gravity.
-            
-            # This sends the command to all 64 processes instantly
             training_vec_env.env_method(
                 "reconfigure", 
                 gravity=task_info['gravity'], 
                 wind_power=task_info['wind']
             )
-            
-            # We must reset the environment so the new gravity takes effect
             training_vec_env.reset()
-
-            # Attach the persistent pool to the current client
             client.set_env(training_vec_env)
 
-            # C. Train (Pure speed, no setup cost)
-            # print(f"  > Training {task_info['label']} (Hot-Swapped)...")
+            # C. SETUP STREAMING LOGGING
+            # Create a callback specific to this client/round
+            callback = StreamingCallback(
+                logger=logger, 
+                agent_label=task_info['label'], 
+                round_num=round_num
+            )
+
+            # D. Train
             client.learn(total_timesteps=LOCAL_STEPS, callback=callback, reset_num_timesteps=False)
 
-            # D. DP Logic (Standard)
-            new_weights = client.policy.state_dict()
+            # E. SAVE WEIGHTS (Pre-DP)
+            # Save the actual trained weights to disk before we noise them
+            current_weights = client.policy.state_dict()
+            logger.save_client_weights(task_info['label'], round_num, current_weights)
+
+            # F. DP Logic (Compute Delta -> Clip -> Add Noise)
             delta = OrderedDict()
             noisy_delta = OrderedDict()
             total_l1_norm = 0.0
 
+            # Calculate update (Delta)
             for key in global_state_dict.keys():
-                delta[key] = new_weights[key] - global_state_dict[key]
+                delta[key] = current_weights[key] - global_state_dict[key]
                 total_l1_norm += th.sum(th.abs(delta[key]))
 
             total_l1_norm = total_l1_norm.item()
@@ -122,27 +125,35 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
         if active_noisy_deltas:
             print(f"  Aggregating {len(active_noisy_deltas)} updates...")
             avg_noisy_delta = average_ordered_dicts(active_noisy_deltas)
+            
+            # Apply averaged noisy delta to global model
             new_global_state_dict = OrderedDict()
             for key in global_state_dict.keys():
                 new_global_state_dict[key] = global_state_dict[key] + avg_noisy_delta[key]
+            
             global_model.policy.load_state_dict(new_global_state_dict)
+
+            # Optional: Save global model for this round
+            logger.save_client_weights("Global_Model", round_num, new_global_state_dict)
 
     # === CLEANUP ===
     print("Closing persistent environments...")
     training_vec_env.close()
+    dummy_env.close()
     
-    # Save Model
-    global_model.save(f"models/dp_sens{DP_SENSITIVITY}_ep{DP_EPSILON}_global_model_final.zip")
-    save_data(client_callbacks, f"dp_sens{DP_SENSITIVITY}_ep{DP_EPSILON}_final_data.npz")
+    # Save Final Model
+    final_path = f"logs/{experiment_name}/global_model_final.zip"
+    global_model.save(final_path)
+    print(f"Final model saved to {final_path}")
 
 if __name__ == '__main__':
 
-    print("Running dp_fl_training_utils.py as main script...")
+    print("Running dp_fl_experiment with Disk Logging...")
 
     # === Define FL Hyperparameters ===
     NUM_ROUNDS = 3
     LOCAL_STEPS = 5000
-    CHECK_FREQ = 5000
+    CHECK_FREQ = 5000 # Note: Used by logger internally if needed, but StreamingCallback logs every episode end
     CLIENTS_PER_ROUND = 2 
 
     # === Define DP Hyperparameters ===
@@ -151,32 +162,18 @@ if __name__ == '__main__':
 
     # === Define the Clients (Tasks) ===
     fl_task_list = [
-        {
-            'label': 'Client_1_Moon',
-            'gravity': -1.6,
-            'wind': 0.0,
-        },
-        {
-            'label': 'Client_2_Earth',
-            'gravity': -9.8,
-            'wind': 0.5,
-        },
-        {
-            'label': 'Client_3_Mars',
-            'gravity': -3.73,
-            'wind': 0.2,
-        },
+        {'label': 'Client_1_Moon', 'gravity': -1.6, 'wind': 0.0},
+        {'label': 'Client_2_Earth', 'gravity': -9.8, 'wind': 0.5},
+        {'label': 'Client_3_Mars', 'gravity': -3.73, 'wind': 0.2},
     ]
     
-    if CLIENTS_PER_ROUND > len(fl_task_list):
-        print("Error: CLIENTS_PER_ROUND cannot be larger than the total number of clients.")
-    else:
-        run_dp_fl_experiment(
-            NUM_ROUNDS,
-            CHECK_FREQ,
-            LOCAL_STEPS,
-            fl_task_list,
-            DP_SENSITIVITY,
-            DP_EPSILON,
-            CLIENTS_PER_ROUND
-        )
+    run_dp_fl_experiment(
+        NUM_ROUNDS=NUM_ROUNDS,
+        CHECK_FREQ=CHECK_FREQ,
+        LOCAL_STEPS=LOCAL_STEPS,
+        task_list=fl_task_list,
+        DP_SENSITIVITY=DP_SENSITIVITY,
+        DP_EPSILON=DP_EPSILON,
+        clients_per_round=CLIENTS_PER_ROUND,
+        experiment_name=f"dp_fl_sens{DP_SENSITIVITY}_eps{DP_EPSILON}"
+    )

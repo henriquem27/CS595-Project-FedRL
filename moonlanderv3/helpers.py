@@ -6,9 +6,96 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3 import PPO
 from collections import OrderedDict
 from sklearn.cluster import KMeans
-
+import os
+import csv
+import json
 import gymnasium as gym
 from gymnasium.envs.box2d.lunar_lander import LunarLander
+
+
+class ExperimentLogger:
+    def __init__(self, experiment_name):
+        self.base_dir = f"logs/{experiment_name}"
+        self.weights_dir = os.path.join(self.base_dir, "weights")
+        self.metrics_dir = os.path.join(self.base_dir, "metrics")
+        
+        # Create directories
+        os.makedirs(self.weights_dir, exist_ok=True)
+        os.makedirs(self.metrics_dir, exist_ok=True)
+        
+        # Cache for CSV writers to avoid reopening files constantly
+        self.csv_headers_written = set()
+
+    def log_metric(self, client_label, metric_name, value, step, round_num):
+        """
+        Logs a scalar metric (reward, length, etc.) to a CSV file specific to that client.
+        """
+        filename = os.path.join(self.metrics_dir, f"{client_label}_metrics.csv")
+        file_exists = os.path.isfile(filename)
+        
+        with open(filename, 'a', newline='') as f:
+            writer = csv.writer(f)
+            # Write header if new file
+            if not file_exists and filename not in self.csv_headers_written:
+                writer.writerow(['round', 'step', 'metric', 'value'])
+                self.csv_headers_written.add(filename)
+            
+            writer.writerow([round_num, step, metric_name, value])
+
+    def save_client_weights(self, client_label, round_num, state_dict):
+        """
+        Saves model weights to a specific folder structure: weights/round_X/client_Y.pt
+        """
+        # Create a folder specifically for this round
+        round_dir = os.path.join(self.weights_dir, f"round_{round_num}")
+        os.makedirs(round_dir, exist_ok=True)
+        
+        save_path = os.path.join(round_dir, f"{client_label}.pt")
+        
+        # Option 1: Save full PyTorch dict (Easiest to reload)
+        th.save(state_dict, save_path)
+        
+        # Option 2: Save as numpy (If you strictly want arrays like your current setup)
+        # flat_weights = np.concatenate([p.cpu().numpy().flatten() for p in state_dict.values()])
+        # np.savez_compressed(save_path.replace('.pt', '.npz'), weights=flat_weights)
+class StreamingCallback(BaseCallback):
+    """
+    A callback that logs rewards to disk immediately after an episode ends,
+    rather than storing them in RAM.
+    """
+    def __init__(self, logger, agent_label, round_num, verbose=0):
+        super(StreamingCallback, self).__init__(verbose)
+        # RENAMED: self.logger -> self.exp_logger to avoid conflict with SB3 BaseCallback
+        self.exp_logger = logger 
+        self.agent_label = agent_label
+        self.round_num = round_num
+
+    def _on_step(self) -> bool:
+        # Check for episode completion
+        for i, done in enumerate(self.locals.get("dones", [])):
+            if done:
+                info = self.locals.get("infos", [{}])[i]
+                # Extract reward and length from the monitor info
+                if "episode" in info:
+                    ep_reward = info["episode"]["r"]
+                    ep_length = info["episode"]["l"]
+                    
+                    # Log to disk immediately using the RENAMED variable
+                    self.exp_logger.log_metric(
+                        client_label=self.agent_label,
+                        metric_name="episode_reward",
+                        value=ep_reward,
+                        step=self.n_calls,
+                        round_num=self.round_num
+                    )
+                    self.exp_logger.log_metric(
+                        client_label=self.agent_label,
+                        metric_name="episode_length",
+                        value=ep_length,
+                        step=self.n_calls,
+                        round_num=self.round_num
+                    )
+        return True
 
 class DynamicLunarLander(LunarLander):
     """

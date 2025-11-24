@@ -8,11 +8,11 @@ KEY_PEM="/Users/henriquerio/Documents/IIT/FALL2025-HW/CS595/hmr-test.pem"
 REMOTE_USER="cc"
 REMOTE_IP="129.114.108.135"
 # Assuming the previous upload placed 'moonlander' in the home directory (~/)
-REMOTE_SOURCE_BASE="~/moonlander"
+REMOTE_SOURCE_BASE="~/moonlanderv1"
 
 # Local Destination Path
 # I've constructed this based on your upload path + the requested subfolder
-LOCAL_DEST_DIR="/Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlander/sv_results/v1"
+LOCAL_DEST_DIR="/Users/henriquerio/Documents/IIT/CS595-Project-FedRL/sv_results/v2"
 
 # List of folders to collect
 FOLDERS_TO_COLLECT=("comparison_plots" "plots" "models")
