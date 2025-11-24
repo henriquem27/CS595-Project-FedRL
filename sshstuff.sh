@@ -4,7 +4,7 @@ ssh -i ~/.ssh/hmr-test.pem  cc@129.114.108.135
 
 scp -i ~/.ssh/hmr-test.pem /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlander/experiment.py cc@129.114.108.135:~/moonlander/experiment.py
 #copy full moonlander folder to ec2
-scp -r -i ~/.ssh/hmr-test.pem /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlanderv1 cc@129.114.108.135:~/
+scp -r -i ~/.ssh/hmr-test.pem /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlanderv3 cc@129.114.108.135:~/
 
 #create screen session
 screen -S test
