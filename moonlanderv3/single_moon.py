@@ -4,6 +4,7 @@ import torch as th
 import os
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList
 from stable_baselines3 import PPO
+from stable_baselines3.common.env_util import make_vec_env
 # Ensure you have updated helpers.py with the ExperimentLogger class
 from helpers import ExperimentLogger, StreamingCallback
 
@@ -37,7 +38,7 @@ def run_experiment_training(TOTAL_TIMESTEPS, CHECK_FREQ, task_list, experiment_n
     # --- 1. Initialize Logger ---
     # This creates logs/single_agent_run/metrics and logs/single_agent_run/weights
     logger = ExperimentLogger(experiment_name=experiment_name)
-    
+    N_ENVS = 32
     print(f"Starting Single Agent Experiment. Logging to /logs/{experiment_name}")
 
     # --- Loop over all defined tasks ---
@@ -52,7 +53,11 @@ def run_experiment_training(TOTAL_TIMESTEPS, CHECK_FREQ, task_list, experiment_n
         # 2. Create the environment
         try:
             # Try passing kwargs (requires LunarLander-v3 or compatible wrapper)
-            env = gym.make('LunarLander-v3', gravity=gravity, enable_wind=True, wind_power=wind)
+            env = make_vec_env(
+                "LunarLander-v3",
+                n_envs=N_ENVS,
+                env_kwargs={'gravity': gravity, 'enable_wind': True, 'wind_power': wind}
+            )
         except:
             print("Standard LunarLander-v3 didn't accept kwargs, using default env for safety.")
             env = gym.make('LunarLander-v3')

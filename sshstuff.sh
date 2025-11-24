@@ -17,8 +17,9 @@ screen -r test
 #Detach from the screen session: Press Ctrl + a + d.
 
 nohup python3 -u experiment.py > output_log.txt 2>&1 &
-
+#process =37899
 # check logs
 tail -f output_log.txt
 
-
+# kill all processes
+pkill -u cc -9 python3

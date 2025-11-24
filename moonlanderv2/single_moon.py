@@ -4,7 +4,9 @@ import torch as th
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3 import PPO
 from helpers import WeightStorageCallback, save_data
-
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
 def run_experiment_training(TOTAL_TIMESTEPS, CHECK_FREQ, task_list):
 

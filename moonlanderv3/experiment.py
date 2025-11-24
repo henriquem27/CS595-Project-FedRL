@@ -219,7 +219,7 @@ if __name__ == "__main__":
             kwargs={
                 'TOTAL_TIMESTEPS': TOTAL_TIMESTEPS, 
                 'CHECK_FREQ': CHECK_FREQ, 
-                'task_list': task_list, 
+                'task_list': single_task_list, 
                 'experiment_name': "single_moon"
             }
         )

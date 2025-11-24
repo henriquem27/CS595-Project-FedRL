@@ -42,7 +42,7 @@ def run_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, clients_per_round, ta
     
     # --- 2. SETUP RESOURCES ---
     MAX_CPUS = os.cpu_count()
-    N_ENVS = max(1, MAX_CPUS - 2) # Leave 2 cores for overhead
+    N_ENVS = 32 # Leave 2 cores for overhead
     
     print(f"System detected {MAX_CPUS} CPUs. Using {N_ENVS} Persistent Environments.")
 
