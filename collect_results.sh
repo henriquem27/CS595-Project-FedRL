@@ -2,20 +2,20 @@
 
 # --- Configuration ---
 # Identity file path
-KEY_PEM="/Users/henriquerio/Documents/IIT/FALL2025-HW/CS595/hmr-test.pem"
+KEY_PEM="~/.ssh/hmr-test.pem"
 
 # Remote Server Details
 REMOTE_USER="cc"
 REMOTE_IP="129.114.108.135"
 # Assuming the previous upload placed 'moonlander' in the home directory (~/)
-REMOTE_SOURCE_BASE="~/moonlanderv1"
+REMOTE_SOURCE_BASE="~/moonlanderv3"
 
 # Local Destination Path
 # I've constructed this based on your upload path + the requested subfolder
-LOCAL_DEST_DIR="/Users/henriquerio/Documents/IIT/CS595-Project-FedRL/sv_results/v2"
+LOCAL_DEST_DIR="/Users/henriquerio/Documents/IIT/CS595-Project-FedRL/sv_results/v3"
 
 # List of folders to collect
-FOLDERS_TO_COLLECT=("comparison_plots" "plots" "models")
+FOLDERS_TO_COLLECT=("logs")
 
 # --- Execution ---
 
