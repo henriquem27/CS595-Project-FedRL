@@ -3,14 +3,34 @@ Application Federated Reinforcement Learning
 
 ## Installation
 
-install all dependencies from the main directory:
+install docker on your system.
 
+**ubuntu/debian:**
 ```bash
-cd ~/Desktop/CS595-Project-FedRL
-pip install -r requirements.txt
+sudo apt update
+sudo apt install -y docker.io
+sudo usermod -aG docker $USER
+newgrp docker
 ```
 
-**note:** all requirements are consolidated in the main `requirements.txt` file. subdirectories no longer have separate requirements files.
+**centos/rhel:**
+```bash
+sudo yum install -y docker
+sudo systemctl start docker
+sudo usermod -aG docker $USER
+```
+
+---
+
+## Quick Start
+
+```bash
+cd moonlanderv4
+chmod +x run.sh
+./run.sh
+```
+
+see `moonlanderv4/INSTRUCTIONS.md` for details.
 
 ---
 
@@ -19,9 +39,7 @@ pip install -r requirements.txt
 - **moonlanderv1/** - initial implementation
 - **moonlanderv2/** - improved version
 - **moonlanderv3/** - persistent environments + disk logging
-- **moonlanderv4/** - gradual weight adjustment (latest)
-
-see `moonlanderv4/INSTRUCTIONS.md` for detailed usage instructions.
+- **moonlanderv4/** - gradual weight adjustment + docker (latest)
 
 ---
 

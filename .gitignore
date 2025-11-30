@@ -2,3 +2,4 @@ rlproject/
 *.npz
 
 venv/
+key.pem

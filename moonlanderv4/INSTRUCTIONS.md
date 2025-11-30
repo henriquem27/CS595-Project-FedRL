@@ -2,22 +2,26 @@
 
 ## Prerequisites
 
-install dependencies from the main directory:
-
-```bash
-cd ~/Desktop/CS595-Project-FedRL
-pip install -r requirements.txt
-```
-
-note: all requirements are consolidated in the main directory's requirements.txt file.
+install docker on your system.
 
 ---
 
-## Step 1: Run Experiments
+## Run Experiments
+
+### option 1: using run script
 
 ```bash
-cd moonlanderv4
-python experiment.py
+cd ~/Desktop/CS595-Project-FedRL/moonlanderv4
+chmod +x run.sh
+./run.sh
+```
+
+### option 2: manual docker commands
+
+```bash
+cd ~/Desktop/CS595-Project-FedRL/moonlanderv4
+docker build -t fedrl .
+docker run -v $(pwd)/logs:/app/logs -v $(pwd)/plots:/app/plots fedrl
 ```
 
 **This will run:**
@@ -29,26 +33,22 @@ python experiment.py
 
 ---
 
-## Step 2: Generate Plots
+## Results
 
-```bash
-python generate_plots.py
-```
+after the container finishes:
+- **logs/** - training data and model weights
+- **plots/** - generated visualizations
+- **execution_times.txt** - timing information
 
-**Output:** Plots saved to `plots/` directory
+plots are generated automatically at the end of the experiment.
 
 ---
 
-## Step 3: View Results
+## View Results
 
 ```bash
-# check execution times
 cat execution_times.txt
-
-# view plots
 ls plots/
-
-# check logs
 ls logs/
 ```
 
