@@ -2,10 +2,14 @@
 
 ## Prerequisites
 
+install dependencies from the main directory:
+
 ```bash
-cd /home/rifatxia/Desktop/CS595-Project-FedRL
+cd ~/Desktop/CS595-Project-FedRL
 pip install -r requirements.txt
 ```
+
+note: all requirements are consolidated in the main directory's requirements.txt file.
 
 ---
 
@@ -101,7 +105,7 @@ ulimit -n 4096
 
 ### Import errors:
 ```bash
-cd /home/rifatxia/Desktop/CS595-Project-FedRL/moonlanderv4
+cd ~/Desktop/CS595-Project-FedRL/moonlanderv4
 python -c "from helpers import gradual_weight_update; print('OK')"
 ```
 
