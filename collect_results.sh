@@ -8,11 +8,11 @@ KEY_PEM="~/.ssh/hmr-test.pem"
 REMOTE_USER="cc"
 REMOTE_IP="129.114.108.135"
 # Assuming the previous upload placed 'moonlander' in the home directory (~/)
-REMOTE_SOURCE_BASE="~/moonlanderv3"
+REMOTE_SOURCE_BASE="~/moonlanderv4"
 
 # Local Destination Path
 # I've constructed this based on your upload path + the requested subfolder
-LOCAL_DEST_DIR="/Users/henriquerio/Documents/IIT/CS595-Project-FedRL/sv_results/v3"
+LOCAL_DEST_DIR="/Users/henriquerio/Documents/IIT/CS595-Project-FedRL/sv_results/v4"
 
 # List of folders to collect
 FOLDERS_TO_COLLECT=("logs")

@@ -1,6 +1,8 @@
 rlproject/
 *.npz
 *.pt
+all_metrics.csv
+
 
 venv/
 key.pem

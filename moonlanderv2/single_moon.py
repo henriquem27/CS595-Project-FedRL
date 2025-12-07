@@ -37,7 +37,7 @@ def run_experiment_training(TOTAL_TIMESTEPS, CHECK_FREQ, task_list):
         # 3. Train the model
         model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=callback)
         print(f"Agent {agent_num} ({agent_label}) training complete.")
-
+        model.save(f"models/{agent_label}_model")
         env.close()  # Good practice to close envs
 
     # --- Aggregate all data into numpy arrays ---

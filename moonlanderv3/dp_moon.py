@@ -25,7 +25,7 @@ def run_dp_fl_experiment(NUM_ROUNDS, CHECK_FREQ, LOCAL_STEPS, task_list, DP_SENS
 
     # --- 1. SETUP ---
     MAX_CPUS = os.cpu_count()
-    N_ENVS = 32  # Safety buffer
+    N_ENVS = 64  # Safety buffer
     
     print(f"System detected {MAX_CPUS} CPUs. Using {N_ENVS} Persistent Environments.")
 

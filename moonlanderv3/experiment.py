@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     task_list = single_task_list.copy()
     
-    add_derived_tasks(task_list, num_to_add_per_task=4)
+    add_derived_tasks(task_list, num_to_add_per_task=6)
     clients_per_round = int(len(task_list)/2)
     pprint.pprint(task_list)
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
                 'LOCAL_STEPS': LOCAL_STEPS, 
                 'task_list': task_list, 
                 'DP_SENSITIVITY': 15.0, 
-                'DP_EPSILON': 30.0,
+                'DP_EPSILON': 1000.0,
                 'clients_per_round': clients_per_round
             }
         )
@@ -149,8 +149,8 @@ if __name__ == "__main__":
                 'CHECK_FREQ': CHECK_FREQ, 
                 'LOCAL_STEPS': LOCAL_STEPS, 
                 'task_list': task_list, 
-                'DP_SENSITIVITY': 10.0, 
-                'DP_EPSILON': 30.0,
+                'DP_SENSITIVITY': 1.0, 
+                'DP_EPSILON': 1000.0,
                 'clients_per_round': clients_per_round
             }
         )
@@ -174,8 +174,8 @@ if __name__ == "__main__":
                 'CHECK_FREQ': CHECK_FREQ, 
                 'LOCAL_STEPS': LOCAL_STEPS, 
                 'task_list': task_list, 
-                'DP_SENSITIVITY': 5.0, 
-                'DP_EPSILON': 30.0,
+                'DP_SENSITIVITY': 0.1, 
+                'DP_EPSILON': 1000.0,
                 'clients_per_round': clients_per_round
             }
         )
@@ -199,8 +199,8 @@ if __name__ == "__main__":
                 'CHECK_FREQ': CHECK_FREQ, 
                 'LOCAL_STEPS': LOCAL_STEPS, 
                 'task_list': task_list, 
-                'DP_SENSITIVITY': 1.0, 
-                'DP_EPSILON': 30.0,
+                'DP_SENSITIVITY': 2.0, 
+                'DP_EPSILON': 1000.0,
                 'clients_per_round': clients_per_round
             }
         )

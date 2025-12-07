@@ -1,0 +1,6 @@
+Function: DP FL 2, Time Taken: 27004.853002 seconds
+Function: DP FL 3, Time Taken: 26481.428628 seconds
+Function: DP FL 4, Time Taken: 26510.991957 seconds
+Function: DP FL 5, Time Taken: 25923.769325 seconds
+Function: FL, Time Taken: 26722.698019 seconds
+Function: Single Moon, Time Taken: 3315.543002 seconds

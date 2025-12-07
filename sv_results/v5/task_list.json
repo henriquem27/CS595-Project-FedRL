@@ -1,0 +1,107 @@
+[
+    {
+        "label": "Client_1_Moon",
+        "gravity": -1.6,
+        "wind": 0.5
+    },
+    {
+        "label": "Client_2_Earth",
+        "gravity": -9.8,
+        "wind": 0.5
+    },
+    {
+        "label": "Client_3_Mars",
+        "gravity": -3.73,
+        "wind": 0.5
+    },
+    {
+        "label": "Client_0_Moon",
+        "gravity": -1.6,
+        "wind": 0
+    },
+    {
+        "label": "Client_-1_Moon",
+        "gravity": -1.6,
+        "wind": 8
+    },
+    {
+        "label": "Client_-2_Moon",
+        "gravity": -1.6,
+        "wind": 13
+    },
+    {
+        "label": "Client_-3_Moon",
+        "gravity": -1.6,
+        "wind": 4
+    },
+    {
+        "label": "Client_-4_Moon",
+        "gravity": -1.6,
+        "wind": 13
+    },
+    {
+        "label": "Client_-5_Moon",
+        "gravity": -1.6,
+        "wind": 3
+    },
+    {
+        "label": "Client_1_Earth",
+        "gravity": -9.8,
+        "wind": 11
+    },
+    {
+        "label": "Client_0_Earth",
+        "gravity": -9.8,
+        "wind": 12
+    },
+    {
+        "label": "Client_-1_Earth",
+        "gravity": -9.8,
+        "wind": 3
+    },
+    {
+        "label": "Client_-2_Earth",
+        "gravity": -9.8,
+        "wind": 13
+    },
+    {
+        "label": "Client_-3_Earth",
+        "gravity": -9.8,
+        "wind": 1
+    },
+    {
+        "label": "Client_-4_Earth",
+        "gravity": -9.8,
+        "wind": 9
+    },
+    {
+        "label": "Client_2_Mars",
+        "gravity": -3.73,
+        "wind": 5
+    },
+    {
+        "label": "Client_1_Mars",
+        "gravity": -3.73,
+        "wind": 8
+    },
+    {
+        "label": "Client_0_Mars",
+        "gravity": -3.73,
+        "wind": 2
+    },
+    {
+        "label": "Client_-1_Mars",
+        "gravity": -3.73,
+        "wind": 4
+    },
+    {
+        "label": "Client_-2_Mars",
+        "gravity": -3.73,
+        "wind": 9
+    },
+    {
+        "label": "Client_-3_Mars",
+        "gravity": -3.73,
+        "wind": 1
+    }
+]

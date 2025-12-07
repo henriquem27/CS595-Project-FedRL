@@ -4,13 +4,13 @@ ssh -i ~/.ssh/hmr-test.pem  cc@129.114.108.135
 
 scp -i ~/.ssh/hmr-test.pem /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlander/experiment.py cc@129.114.108.135:~/moonlander/experiment.py
 #copy full moonlander folder to ec2
-scp -r -i ~/.ssh/hmr-test.pem /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlanderv3 cc@129.114.108.135:~/
+scp -r -i ~/.ssh/hmr-test.pem /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlanderv4 cc@129.114.108.135:~/
 
 #create screen session
 screen -S test
 #copy npz to sv_results/v1
 scp -i ~/.ssh/hmr-test.pem cc@129.114.108.135:~/moonlander/dp_training_data_ep30_sens15.npz  /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlander/sv_results/v1
-scp -i /Users/henriquerio/Documents/IIT/FALL2025-HW/CS595/hmr-test.pem cc@129.114.108.135:~/moonlander/federated_training_data.npz  /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/moonlander/sv_results/v1
+scp -i ~/.ssh/hmr-test.pem cc@129.114.108.135:~/moonlanderv4/execution_times.txt  /Users/henriquerio/Documents/IIT/CS595-Project-FedRL/sv_results/v4
 #continue screen session
 screen -r test
 
