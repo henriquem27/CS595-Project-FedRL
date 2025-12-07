@@ -1,9 +1,0 @@
-numpy
-gymnasium
-gymnasium-robotics
-stable-baselines3
-torch
-matplotlib
-pandas
-scikit-learn
-umap-learn

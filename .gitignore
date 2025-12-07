@@ -2,3 +2,7 @@ rlproject/
 *.npz
 *.pt
 
+venv/
+key.pem
+
+zia_final/
