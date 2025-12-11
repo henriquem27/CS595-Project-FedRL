@@ -1,0 +1,5 @@
+Experiment,Accuracy
+DP_500,0.776
+DP_5000,0.824
+DP_100,0.36
+FL,0.88

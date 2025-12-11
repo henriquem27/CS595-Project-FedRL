@@ -1,36 +1,20 @@
 # CS595-Project-FedRL
 Application Federated Reinforcement Learning
 
-## Installation
 
-install docker on your system.
 
-**ubuntu/debian:**
-```bash
-sudo apt update
-sudo apt install -y docker.io
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-**centos/rhel:**
-```bash
-sudo yum install -y docker
-sudo systemctl start docker
-sudo usermod -aG docker $USER
-```
 
 ---
 
 ## Quick Start
 
 ```bash
-cd moonlanderv4
+cd moonlanderv5
 chmod +x run.sh
 ./run.sh
 ```
 
-see `moonlanderv4/INSTRUCTIONS.md` for details.
+see `moonlanderv5/INSTRUCTIONS.md` for details.
 
 ---
 
@@ -39,11 +23,18 @@ see `moonlanderv4/INSTRUCTIONS.md` for details.
 - **moonlanderv1/** - initial implementation
 - **moonlanderv2/** - improved version
 - **moonlanderv3/** - persistent environments + disk logging
-- **moonlanderv4/** - gradual weight adjustment + docker (latest)
+- **moonlanderv4/** - gradual weight adjustment + docker
+- **moonlanderv5/** - Main folder used to get the results in the figures folder
 
+- **figures/** - folder containing the plots used in the paper.
 ---
 
-## TODO:
+## Results Reproduction
 
-✅ implement gradual weight adjustment mechanism (done in v4)
-✅ implement differential privacy step (done in v3)
+All plots were generated using the file plotting.ipynb
+
+To run the notebook, you will need to have jupyter notebook installed.
+
+```bash
+jupyter notebook plotting.ipynb
+```
